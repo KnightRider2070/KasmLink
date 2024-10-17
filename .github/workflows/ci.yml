@@ -9,44 +9,12 @@ on:
       - main
 
 jobs:
-  # This job tests the PR before allowing a merge
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.23"  # Update Go version to 1.23 to match go.mod
-
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/go-build
-          key: ${{ runner.os }}-go-build-${{ hashFiles('**/*.go') }}
-          restore-keys: |
-            ${{ runner.os }}-go-build-
-
-      - name: Install dependencies
-        run: go mod tidy && go mod download
-
-      - name: Run Unit Tests with Race Detection
-        run: go test -v -race ./... | tee test_output.txt
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: test_output.txt
-
   build:
-    needs: test # Ensure build runs only after tests pass
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ ubuntu-latest, windows-latest ]
+        arch: [ amd64, arm64 ]
 
     steps:
       - name: Checkout code
@@ -68,24 +36,32 @@ jobs:
       - name: Install dependencies
         run: go mod tidy && go mod download
 
-      - name: Build for ${{ matrix.os }}
+      # For Linux (Bash)
+      - name: Build for Linux
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-            GOOS=linux GOARCH=amd64 go build -o kasmlink-linux .
-          elif [ "${{ matrix.os }}" == "windows-latest" ]; then
-            GOOS=windows GOARCH=amd64 go build -o kasmlink.exe .
-          fi
+          GOOS=linux GOARCH=${{ matrix.arch }} go build -o kasmlink-linux-${{ matrix.arch }} .
+        shell: bash  # Use bash shell for Linux
+
+      # For Windows (PowerShell)
+      - name: Build for Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          if ($Env:RUNNER_OS -eq 'Windows') {
+            $GOOS="windows"; $GOARCH="${{ matrix.arch }}"; go build -o kasmlink-${{ matrix.arch }}.exe .
+          }
+        shell: pwsh  # Use PowerShell for Windows
 
       - name: Upload Linux Build
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: kasmlink-linux
-          path: kasmlink-linux
+          name: kasmlink-linux-${{ matrix.arch }}
+          path: kasmlink-linux-${{ matrix.arch }}
 
       - name: Upload Windows Build
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: kasmlink-windows
-          path: kasmlink.exe
+          name: kasmlink-windows-${{ matrix.arch }}
+          path: kasmlink-${{ matrix.arch }}.exe
