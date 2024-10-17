@@ -74,6 +74,7 @@ jobs:
             GOOS=linux GOARCH=amd64 go build -o kasmlink-linux ./cmd
           elif [ "${{ matrix.os }}" == "windows-latest" ]; then
             GOOS=windows GOARCH=amd64 go build -o kasmlink.exe ./cmd
+          fi
 
       - name: Upload Linux Build
         if: matrix.os == 'ubuntu-latest'
