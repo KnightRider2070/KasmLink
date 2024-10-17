@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>KasmLink CLI Documentation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #333;
+        }
+
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        code {
+            color: #c7254e;
+            background-color: #f9f2f4;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+<h1>KasmLink CLI Documentation</h1>
+<p>KasmLink CLI is a command-line tool to interact with the Kasm API. You can use it to manage users, images,
+    sessions, SSH connections, and more.</p>
+
+<h2>Installation</h2>
+<pre><code>go install ./...</code></pre>
+
+<h2>General Usage</h2>
+<p>To use the <code>kasmlink</code> command, follow this basic syntax:</p>
+<pre><code>kasmlink [command] [subcommand] [flags]</code></pre>
+
+<h2>Commands</h2>
+
+<h3>User Management Commands</h3>
+<h4>1. Create User</h4>
+<p>Create a new user in Kasm.</p>
+<pre><code>kasmlink user create --username <username> --first_name <first_name> --last_name <last_name> --password <password></code></pre>
+<ul>
+    <li><code>--username</code> (required): The username for the new user.</li>
+    <li><code>--first_name</code> (optional): The first name of the user.</li>
+    <li><code>--last_name</code> (optional): The last name of the user.</li>
+    <li><code>--password</code> (required): The password for the new user.</li>
+</ul>
+
+<h4>2. List Users</h4>
+<p>List all users in the Kasm system.</p>
+<pre><code>kasmlink user list</code></pre>
+
+<h4>3. Logout User</h4>
+<p>Log out all sessions for an existing user.</p>
+<pre><code>kasmlink user logout --user_id <user_id></code></pre>
+<ul>
+    <li><code>--user_id</code> (required): The ID of the user to log out.</li>
+</ul>
+
+<h4>4. Get User Attributes</h4>
+<p>Retrieve the attribute settings (preferences) for a user.</p>
+<pre><code>kasmlink user get-attributes --user_id <user_id></code></pre>
+<ul>
+    <li><code>--user_id</code> (required): The ID of the user whose attributes you want to retrieve.</li>
+</ul>
+
+<h4>5. Update User Attributes</h4>
+<p>Update the attribute (preferences) settings for a user.</p>
+<pre><code>kasmlink user update-attributes --user_id <user_id> --attribute_key <key> --attribute_value <value></code></pre>
+<ul>
+    <li><code>--user_id</code> (required): The ID of the user whose attributes you want to update.</li>
+    <li><code>--attribute_key</code> (required): The key of the attribute to update (e.g., <code>show_tips</code>).
+    </li>
+    <li><code>--attribute_value</code> (required): The new value for the attribute (e.g., <code>true</code>).</li>
+</ul>
+
+<h3>Image Management Commands</h3>
+<h4>1. List Images</h4>
+<p>List all available images in Kasm.</p>
+<pre><code>kasmlink image list</code></pre>
+
+<h3>Session Management Commands</h3>
+<h4>1. Create Session</h4>
+<p>Request a new Kasm session.</p>
+<pre><code>kasmlink session create --user_id <user_id> --image_id <image_id></code></pre>
+<ul>
+    <li><code>--user_id</code> (required): The ID of the user for whom to create a session.</li>
+    <li><code>--image_id</code> (required): The image ID to use for the session.</li>
+</ul>
+
+<h4>2. Destroy Session</h4>
+<p>Destroy a Kasm session.</p>
+<pre><code>kasmlink session destroy --user_id <user_id> --kasm_id <kasm_id></code></pre>
+<ul>
+    <li><code>--user_id</code> (required): The ID of the user associated with the session.</li>
+    <li><code>--kasm_id</code> (required): The Kasm ID of the session to destroy.</li>
+</ul>
+
+<h3>SSH Commands</h3>
+<h4>1. Connect via SSH</h4>
+<p>Connect to a remote server via SSH.</p>
+<pre><code>kasmlink ssh connect --host <host> --port <port> --user <username> --password <password></code></pre>
+<ul>
+    <li><code>--host</code> (required): The hostname or IP of the server to connect to.</li>
+    <li><code>--port</code> (optional): The SSH port (default: 22).</li>
+    <li><code>--user</code> (required): The username for the SSH connection.</li>
+    <li><code>--password</code> (optional): The password for the SSH connection (optional if using private key).
+    </li>
+    <li><code>--private_key</code> (optional): Path to the private key file for authentication.</li>
+</ul>
+
+<h4>2. Upload a File via SCP</h4>
+<p>Upload a local file to a remote server via SCP.</p>
+<pre><code>kasmlink ssh upload --host <host> --user <username> --local <local_path> --remote <remote_path></code></pre>
+<ul>
+    <li><code>--host</code> (required): The hostname or IP of the server to upload the file to.</li>
+    <li><code>--user</code> (required): The username for the SSH connection.</li>
+    <li><code>--local</code> (required): The local file path to upload.</li>
+    <li><code>--remote</code> (required): The remote file path where the file will be uploaded.</li>
+</ul>
+
+<h4>3. Download a File via SCP</h4>
+<p>Download a file from a remote server via SCP.</p>
+<pre><code>kasmlink ssh download --host <host> --user <username> --local <local_path> --remote <remote_path></code></pre>
+<ul>
+    <li><code>--host</code> (required): The hostname or IP of the server to download the file from.</li>
+    <li><code>--user</code> (required): The username for the SSH connection.</li>
+    <li><code>--local</code> (required): The local path where the file will be saved.</li>
+    <li><code>--remote</code> (required): The remote file path to download.</li>
+</ul>
+
+<h2>Flags</h2>
+<p>The following flags are available for use with most commands:</p>
+<ul>
+    <li><code>--api_key</code>: Your Kasm API key (required).</li>
+    <li><code>--api_secret</code>: Your Kasm API secret (required).</li>
+    <li><code>--base_url</code>: The base URL for the Kasm API (default: <code>http://localhost:8080</code>).</li>
+    <li><code>--skip_tls</code>: Whether to skip TLS verification (default: <code>false</code>).</li>
+</ul>
+
+</body>
+
+</html>

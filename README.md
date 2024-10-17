@@ -1,4 +1,5 @@
 # KasmLink
+
 <div align="center">
   <img src="logo.webp" alt="KasmLink Logo" />
 </div>
@@ -151,7 +152,8 @@ Make sure to include tests when adding new functionality.
 
 ## CI/CD Pipeline
 
-This project uses GitHub Actions to run tests and build the application on every push to the `main` branch. Pull requests must pass all tests before being merged.
+This project uses GitHub Actions to run tests and build the application on every push to the `main` branch. Pull
+requests must pass all tests before being merged.
 
 ### Triggering a Release
 

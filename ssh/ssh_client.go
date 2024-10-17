@@ -2,7 +2,9 @@ package ssh
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -96,6 +98,100 @@ func (c *SSHClient) RunCommand(cmd string) (string, error) {
 	}
 
 	return string(output), nil
+}
+
+// UploadFile uploads a local file to the remote server using SCP
+func (c *SSHClient) UploadFile(localPath, remotePath string) error {
+	if c.Client == nil {
+		return fmt.Errorf("SSH client is not connected")
+	}
+
+	session, err := c.Client.NewSession()
+	if err != nil {
+		return fmt.Errorf("failed to create SSH session: %v", err)
+	}
+	defer session.Close()
+
+	// Open the local file for reading
+	file, err := os.Open(localPath)
+	if err != nil {
+		return fmt.Errorf("failed to open local file: %v", err)
+	}
+	defer file.Close()
+
+	// Get file size and base filename
+	stat, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat file: %v", err)
+	}
+	filename := filepath.Base(localPath)
+	filesize := stat.Size()
+
+	// Start SCP process on the remote server
+	go func() {
+		w, _ := session.StdinPipe()
+		defer w.Close()
+		fmt.Fprintf(w, "C0644 %d %s\n", filesize, filename) // Send file metadata
+		io.Copy(w, file)                                    // Send the file data
+		fmt.Fprint(w, "\x00")                               // Send transfer end signal
+	}()
+
+	if err := session.Run(fmt.Sprintf("scp -t %s", remotePath)); err != nil {
+		return fmt.Errorf("failed to run SCP command on remote server: %v", err)
+	}
+
+	return nil
+}
+
+// DownloadFile downloads a file from the remote server to the local machine using SCP
+func (c *SSHClient) DownloadFile(remotePath, localPath string) error {
+	if c.Client == nil {
+		return fmt.Errorf("SSH client is not connected")
+	}
+
+	session, err := c.Client.NewSession()
+	if err != nil {
+		return fmt.Errorf("failed to create SSH session: %v", err)
+	}
+	defer session.Close()
+
+	// Create the local file for writing
+	file, err := os.Create(localPath)
+	if err != nil {
+		return fmt.Errorf("failed to create local file: %v", err)
+	}
+	defer file.Close()
+
+	// Start SCP process on the remote server
+	go func() {
+		w, _ := session.StdinPipe()
+		defer w.Close()
+		fmt.Fprint(w, "\x00") // Send initial OK signal
+	}()
+
+	// Open the remote file and copy its contents to the local file
+	r, _ := session.StdoutPipe()
+	err = session.Start(fmt.Sprintf("scp -f %s", remotePath))
+	if err != nil {
+		return fmt.Errorf("failed to run SCP command on remote server: %v", err)
+	}
+
+	// Read the SCP protocol response and write to the local file
+	buf := make([]byte, 1024)
+	for {
+		n, err := r.Read(buf)
+		if err != nil && err != io.EOF {
+			return fmt.Errorf("failed to read from remote file: %v", err)
+		}
+		if n == 0 {
+			break
+		}
+		if _, err := file.Write(buf[:n]); err != nil {
+			return fmt.Errorf("failed to write to local file: %v", err)
+		}
+	}
+
+	return nil
 }
 
 // Disconnect closes the SSH connection

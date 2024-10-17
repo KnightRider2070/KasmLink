@@ -2,17 +2,45 @@ package api
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"time"
 )
+
+// AskUserToSkipTLS asks user whether to skip TLS certificate verification
+func AskUserToSkipTLS() bool {
+	var input string
+	fmt.Println("Do you want to skip TLS certificate verification? (y/N): ")
+	fmt.Scanln(&input)
+	return input == "y" || input == "Y"
+}
+
+// CreateHTTPClient creates an HTTP client with optional TLS verification
+func CreateHTTPClient(skipTLSVerification bool) *http.Client {
+	if skipTLSVerification {
+		// Warning: Skipping TLS certificate verification
+		return &http.Client{
+			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true, // This skips TLS verification
+				},
+			},
+		}
+	}
+
+	// Default client with proper TLS verification
+	return &http.Client{Timeout: 30 * time.Second}
+}
 
 // MakeGetRequest handles making GET requests to the KASM API.
 func (api *KasmAPI) MakeGetRequest(url string) ([]byte, error) {
 	log.Printf("Making GET request to URL: %s", url)
-	client := &http.Client{}
+	client := CreateHTTPClient(api.SkipTLSVerification)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Printf("Failed to create GET request: %v", err)
@@ -42,42 +70,42 @@ func (api *KasmAPI) MakeGetRequest(url string) ([]byte, error) {
 	return body, nil
 }
 
-// MakePostRequest handles making POST requests to the KASM API.
+// MakePostRequest handles making POST requests to the KASM API
 func (api *KasmAPI) MakePostRequest(url string, payload interface{}) ([]byte, error) {
-	log.Printf("Making POST request to URL: %s with payload: %v", url, payload)
-	client := &http.Client{}
-	requestBody, err := json.Marshal(payload)
+	// Convert payload to JSON
+	body, err := json.Marshal(payload)
 	if err != nil {
-		log.Printf("Failed to marshal payload: %v", err)
 		return nil, fmt.Errorf("failed to marshal payload: %v", err)
 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
-	if err != nil {
-		log.Printf("Failed to create POST request: %v", err)
-		return nil, fmt.Errorf("failed to create request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.APIKey))
+	// Create an HTTP client that can skip TLS verification if needed
+	client := CreateHTTPClient(api.SkipTLSVerification)
 
+	// Create and send POST request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create POST request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute the request
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("POST request failed: %v", err)
-		return nil, fmt.Errorf("request failed: %v", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		log.Printf("Unexpected response status: %s", resp.Status)
-		return nil, fmt.Errorf("unexpected response status: %s", resp.Status)
+	// Check response status
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	// Read response body
+	responseData, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("Failed to read response body: %v", err)
-		return nil, fmt.Errorf("failed to read response body: %v", err)
+		return nil, err
 	}
 
-	log.Printf("POST request to URL %s succeeded", url)
-	return body, nil
+	return responseData, nil
 }

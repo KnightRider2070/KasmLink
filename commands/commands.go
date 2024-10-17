@@ -3,14 +3,14 @@ package commands
 import (
 	"fmt"
 	"log"
-	"os/exec"
 
 	"kasmlink/api"
+	"kasmlink/ssh"
 
 	"github.com/spf13/cobra"
 )
 
-// Base KasmAPI instance that can be used across commands
+// Base KasmAPI instance used across commands
 var apiInstance *api.KasmAPI
 
 // Flags for API credentials
@@ -18,41 +18,37 @@ var (
 	apiKey    string
 	apiSecret string
 	baseURL   string = "http://localhost:8080"
+	skipTLS   bool
 )
 
-func init() {
-	// Initialize API instance with default values (these can be set via flags)
-	apiInstance = api.NewKasmAPI(baseURL, "your-api-key", "your-api-secret")
+// Declare the rootCmd as a global variable
+var rootCmd = &cobra.Command{
+	Use:   "kasmlink",
+	Short: "KasmLink CLI for interacting with Kasm API",
+	Long:  `KasmLink CLI allows you to interact with Kasm API to manage users, images, sessions, and more.`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Initialize API instance with values from flags
+		skipTLS = api.AskUserToSkipTLS()
+		apiInstance = api.NewKasmAPI(baseURL, apiKey, apiSecret)
+		apiInstance.SkipTLSVerification = skipTLS
+	},
 }
 
-// Execute initializes the CLI commands and handles their execution.
-func Execute() {
-	var rootCmd = &cobra.Command{
-		Use:   "kasmlink",
-		Short: "KasmLink CLI for interacting with Kasm API",
-		Long:  `KasmLink CLI allows you to interact with Kasm API to manage users, images, sessions, SSH connections, and more.`,
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			apiInstance = api.NewKasmAPI(baseURL, apiKey, apiSecret)
-		},
-	}
-
+func init() {
 	// Add persistent flags for API credentials
 	rootCmd.PersistentFlags().StringVar(&apiKey, "api_key", "", "API key for Kasm API (required)")
 	rootCmd.PersistentFlags().StringVar(&apiSecret, "api_secret", "", "API secret for Kasm API (required)")
 	rootCmd.PersistentFlags().StringVar(&baseURL, "base_url", baseURL, "Base URL for the Kasm API")
 
-	// Add subcommands here
-	rootCmd.AddCommand(createUserCmd)
-	rootCmd.AddCommand(listImagesCmd)
-	rootCmd.AddCommand(requestSessionCmd)
-	rootCmd.AddCommand(getUserCmd)
-	rootCmd.AddCommand(deleteUserCmd)
-	rootCmd.AddCommand(execCommandCmd)
-	rootCmd.AddCommand(destroySessionCmd)
-	rootCmd.AddCommand(updateUserCmd)
-	rootCmd.AddCommand(sshConnectCmd)
-	rootCmd.AddCommand(dockerRunCmd)
+	// Add command groups
+	rootCmd.AddCommand(userCmd)
+	rootCmd.AddCommand(imageCmd)
+	rootCmd.AddCommand(sessionCmd)
+	rootCmd.AddCommand(sshCmd)
+}
 
+// Execute initializes the CLI commands and handles their execution.
+func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Error: %v", err)
 	}
@@ -67,24 +63,16 @@ func checkRequiredParams(params map[string]string) {
 	}
 }
 
-// SSH Connect Utility Function
-func initiateSSHConnection(host string, port int, sshUser, keyFile string) error {
-	sshCommand := []string{"ssh", fmt.Sprintf("%s@%s", sshUser, host), "-p", fmt.Sprintf("%d", port)}
-	if keyFile != "" {
-		sshCommand = append(sshCommand, "-i", keyFile)
-	}
+// USER COMMANDS GROUP
 
-	execCmd := exec.Command(sshCommand[0], sshCommand[1:]...)
-	execCmd.Stdout = log.Writer()
-	execCmd.Stderr = log.Writer()
-
-	log.Printf("Initiating SSH connection to %s@%s:%d...", sshUser, host, port)
-	return execCmd.Run()
+var userCmd = &cobra.Command{
+	Use:   "user",
+	Short: "User management commands",
+	Long:  "Manage Kasm users, including creating, deleting, updating, and listing users.",
 }
 
-// Create User Command
 var createUserCmd = &cobra.Command{
-	Use:   "create-user",
+	Use:   "create",
 	Short: "Create a new user in Kasm",
 	Run: func(cmd *cobra.Command, args []string) {
 		username, _ := cmd.Flags().GetString("username")
@@ -97,38 +85,158 @@ var createUserCmd = &cobra.Command{
 			"password": password,
 		})
 
-		request := api.CreateUserRequest{
-			APIKey:       apiKey,
-			APIKeySecret: apiSecret,
-			TargetUser: api.UserInfo{
-				Username:  username,
-				FirstName: firstName,
-				LastName:  lastName,
-				Password:  password,
-			},
+		user := api.TargetUser{
+			Username:  username,
+			FirstName: firstName,
+			LastName:  lastName,
+			Password:  password,
 		}
 
-		response, err := apiInstance.CreateUser(request)
+		response, err := apiInstance.CreateUser(user)
 		if err != nil {
 			log.Fatalf("Error creating user: %v", err)
 		}
 
-		fmt.Printf("User created successfully: %+v\n", response)
+		fmt.Printf("User created successfully: %+v\n", response.UserID)
+	},
+}
+
+var logoutUserCmd = &cobra.Command{
+	Use:   "logout",
+	Short: "Log out all sessions for an existing user",
+	Run: func(cmd *cobra.Command, args []string) {
+		userID, _ := cmd.Flags().GetString("user_id")
+
+		checkRequiredParams(map[string]string{
+			"user_id": userID,
+		})
+
+		if err := apiInstance.LogoutUser(userID); err != nil {
+			log.Fatalf("Error logging out user: %v", err)
+		}
+
+		fmt.Printf("User %s successfully logged out\n", userID)
+	},
+}
+
+var getUserAttributesCmd = &cobra.Command{
+	Use:   "get-attributes",
+	Short: "Retrieve the attribute (preferences) settings for an existing user",
+	Run: func(cmd *cobra.Command, args []string) {
+		userID, _ := cmd.Flags().GetString("user_id")
+
+		checkRequiredParams(map[string]string{
+			"user_id": userID,
+		})
+
+		attributes, err := apiInstance.GetUserAttributes(userID)
+		if err != nil {
+			log.Fatalf("Error retrieving user attributes: %v", err)
+		}
+
+		fmt.Printf("User attributes for user %s: %+v\n", userID, attributes)
+	},
+}
+
+var updateUserAttributesCmd = &cobra.Command{
+	Use:   "update-attributes",
+	Short: "Update the attribute (preferences) settings for an existing user",
+	Run: func(cmd *cobra.Command, args []string) {
+		userID, _ := cmd.Flags().GetString("user_id")
+		attributeKey, _ := cmd.Flags().GetString("attribute_key")
+		attributeValue, _ := cmd.Flags().GetString("attribute_value")
+
+		checkRequiredParams(map[string]string{
+			"user_id":         userID,
+			"attribute_key":   attributeKey,
+			"attribute_value": attributeValue,
+		})
+
+		attributes := api.UserAttributes{
+			UserID: userID,
+			// Assuming we only update certain fields (e.g. ShowTips)
+			ShowTips: attributeValue == "true",
+		}
+
+		if err := apiInstance.UpdateUserAttributes(attributes); err != nil {
+			log.Fatalf("Error updating user attributes: %v", err)
+		}
+
+		fmt.Printf("User attributes for user %s successfully updated\n", userID)
+	},
+}
+
+var listUsersCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all users in the Kasm system",
+	Run: func(cmd *cobra.Command, args []string) {
+		users, err := apiInstance.GetUsers()
+		if err != nil {
+			log.Fatalf("Error retrieving users: %v", err)
+		}
+
+		fmt.Println("List of users:")
+		for _, user := range users {
+			// Handle null fields by checking if they're nil
+			firstName := "N/A"
+			if user.FirstName != nil {
+				firstName = *user.FirstName
+			}
+
+			lastName := "N/A"
+			if user.LastName != nil {
+				lastName = *user.LastName
+			}
+
+			fmt.Printf("User ID: %s, Username: %s, First Name: %s, Last Name: %s\n",
+				user.UserID, user.Username, firstName, lastName)
+		}
 	},
 }
 
 func init() {
+	// Add subcommands to userCmd group
+	userCmd.AddCommand(createUserCmd)
+	userCmd.AddCommand(logoutUserCmd)
+	userCmd.AddCommand(listUsersCmd)
+	userCmd.AddCommand(updateUserAttributesCmd)
+	userCmd.AddCommand(getUserAttributesCmd)
+
+	// Flags for createUserCmd
 	createUserCmd.Flags().StringP("username", "u", "", "Username for the new user (required)")
 	createUserCmd.Flags().StringP("first_name", "f", "", "First name of the user")
 	createUserCmd.Flags().StringP("last_name", "l", "", "Last name of the user")
 	createUserCmd.Flags().StringP("password", "p", "", "Password for the new user (required)")
 	createUserCmd.MarkFlagRequired("username")
 	createUserCmd.MarkFlagRequired("password")
+
+	// Flags for logoutUserCmd
+	logoutUserCmd.Flags().StringP("user_id", "u", "", "User ID to log out (required)")
+	logoutUserCmd.MarkFlagRequired("user_id")
+
+	// Flags for getUserAttributesCmd
+	getUserAttributesCmd.Flags().StringP("user_id", "u", "", "User ID to retrieve attributes for (required)")
+	getUserAttributesCmd.MarkFlagRequired("user_id")
+
+	// Flags for updateUserAttributesCmd
+	updateUserAttributesCmd.Flags().StringP("user_id", "u", "", "User ID to update attributes for (required)")
+	updateUserAttributesCmd.Flags().StringP("attribute_key", "k", "", "Attribute key to update (required)")
+	updateUserAttributesCmd.Flags().StringP("attribute_value", "v", "", "New value for the attribute (required)")
+	updateUserAttributesCmd.MarkFlagRequired("user_id")
+	updateUserAttributesCmd.MarkFlagRequired("attribute_key")
+	updateUserAttributesCmd.MarkFlagRequired("attribute_value")
 }
 
-// List Images Command
+// IMAGE COMMANDS GROUP
+
+var imageCmd = &cobra.Command{
+	Use:   "image",
+	Short: "Image management commands",
+	Long:  "Manage Kasm images, including listing and deploying images.",
+}
+
 var listImagesCmd = &cobra.Command{
-	Use:   "list-images",
+	Use:   "list",
 	Short: "List all available images in Kasm",
 	Run: func(cmd *cobra.Command, args []string) {
 		images, err := apiInstance.ListImages()
@@ -142,9 +250,21 @@ var listImagesCmd = &cobra.Command{
 	},
 }
 
-// Request Kasm Session Command
+func init() {
+	// Add subcommands to imageCmd group
+	imageCmd.AddCommand(listImagesCmd)
+}
+
+// SESSION COMMANDS GROUP
+
+var sessionCmd = &cobra.Command{
+	Use:   "session",
+	Short: "Session management commands",
+	Long:  "Manage Kasm sessions, including requesting and destroying sessions.",
+}
+
 var requestSessionCmd = &cobra.Command{
-	Use:   "request-session",
+	Use:   "create",
 	Short: "Request a new Kasm session",
 	Run: func(cmd *cobra.Command, args []string) {
 		userID, _ := cmd.Flags().GetString("user_id")
@@ -155,7 +275,14 @@ var requestSessionCmd = &cobra.Command{
 			"image_id": imageID,
 		})
 
-		response, err := apiInstance.RequestKasmSession(userID, imageID)
+		request := api.RequestKasmRequest{
+			APIKey:       apiKey,
+			APIKeySecret: apiSecret,
+			UserID:       userID,
+			ImageID:      imageID,
+		}
+
+		response, err := apiInstance.RequestKasmSession(request)
 		if err != nil {
 			log.Fatalf("Error requesting session: %v", err)
 		}
@@ -164,102 +291,8 @@ var requestSessionCmd = &cobra.Command{
 	},
 }
 
-func init() {
-	requestSessionCmd.Flags().StringP("user_id", "u", "", "User ID to create a session for (required)")
-	requestSessionCmd.Flags().StringP("image_id", "i", "", "Image ID to use for the session (required)")
-	requestSessionCmd.MarkFlagRequired("user_id")
-	requestSessionCmd.MarkFlagRequired("image_id")
-}
-
-// Get User Command
-var getUserCmd = &cobra.Command{
-	Use:   "get-user",
-	Short: "Retrieve a user's details from Kasm",
-	Run: func(cmd *cobra.Command, args []string) {
-		userID, _ := cmd.Flags().GetString("user_id")
-
-		checkRequiredParams(map[string]string{
-			"user_id": userID,
-		})
-
-		response, err := apiInstance.GetUser(userID, "")
-		if err != nil {
-			log.Fatalf("Error retrieving user: %v", err)
-		}
-
-		fmt.Printf("User details: %+v\n", response)
-	},
-}
-
-func init() {
-	getUserCmd.Flags().StringP("user_id", "u", "", "User ID to fetch details for (required)")
-	getUserCmd.MarkFlagRequired("user_id")
-}
-
-// Delete User Command
-var deleteUserCmd = &cobra.Command{
-	Use:   "delete-user",
-	Short: "Delete a user in Kasm",
-	Run: func(cmd *cobra.Command, args []string) {
-		userID, _ := cmd.Flags().GetString("user_id")
-
-		checkRequiredParams(map[string]string{
-			"user_id": userID,
-		})
-
-		if err := apiInstance.DeleteUser(userID, false); err != nil {
-			log.Fatalf("Error deleting user: %v", err)
-		}
-
-		fmt.Printf("User with ID %s successfully deleted\n", userID)
-	},
-}
-
-func init() {
-	deleteUserCmd.Flags().StringP("user_id", "u", "", "User ID to delete (required)")
-	deleteUserCmd.MarkFlagRequired("user_id")
-}
-
-// Exec Command in Kasm Session Command
-var execCommandCmd = &cobra.Command{
-	Use:   "exec-command",
-	Short: "Execute a command in a Kasm session",
-	Run: func(cmd *cobra.Command, args []string) {
-		userID, _ := cmd.Flags().GetString("user_id")
-		kasmID, _ := cmd.Flags().GetString("kasm_id")
-		command, _ := cmd.Flags().GetString("command")
-
-		checkRequiredParams(map[string]string{
-			"user_id": userID,
-			"kasm_id": kasmID,
-			"command": command,
-		})
-
-		execConfig := api.ExecConfig{
-			Cmd: command,
-		}
-
-		response, err := apiInstance.ExecCommand(userID, kasmID, execConfig)
-		if err != nil {
-			log.Fatalf("Error executing command: %v", err)
-		}
-
-		fmt.Printf("Command executed successfully: %+v\n", response)
-	},
-}
-
-func init() {
-	execCommandCmd.Flags().StringP("user_id", "u", "", "User ID associated with the Kasm session (required)")
-	execCommandCmd.Flags().StringP("kasm_id", "k", "", "Kasm ID of the session (required)")
-	execCommandCmd.Flags().StringP("command", "c", "", "Command to execute in the session (required)")
-	execCommandCmd.MarkFlagRequired("user_id")
-	execCommandCmd.MarkFlagRequired("kasm_id")
-	execCommandCmd.MarkFlagRequired("command")
-}
-
-// Destroy Kasm Session Command
 var destroySessionCmd = &cobra.Command{
-	Use:   "destroy-session",
+	Use:   "destroy",
 	Short: "Destroy a Kasm session",
 	Run: func(cmd *cobra.Command, args []string) {
 		userID, _ := cmd.Flags().GetString("user_id")
@@ -270,7 +303,14 @@ var destroySessionCmd = &cobra.Command{
 			"kasm_id": kasmID,
 		})
 
-		if err := apiInstance.DestroyKasmSession(userID, kasmID); err != nil {
+		request := api.DestroyKasmRequest{
+			APIKey:       apiKey,
+			APIKeySecret: apiSecret,
+			UserID:       userID,
+			KasmID:       kasmID,
+		}
+
+		if err := apiInstance.DestroyKasmSession(request); err != nil {
 			log.Fatalf("Error destroying session: %v", err)
 		}
 
@@ -279,149 +319,151 @@ var destroySessionCmd = &cobra.Command{
 }
 
 func init() {
+	// Add subcommands to sessionCmd group
+	sessionCmd.AddCommand(requestSessionCmd)
+	sessionCmd.AddCommand(destroySessionCmd)
+
+	requestSessionCmd.Flags().StringP("user_id", "u", "", "User ID to create a session for (required)")
+	requestSessionCmd.Flags().StringP("image_id", "i", "", "Image ID to use for the session (required)")
+	requestSessionCmd.MarkFlagRequired("user_id")
+	requestSessionCmd.MarkFlagRequired("image_id")
+
 	destroySessionCmd.Flags().StringP("user_id", "u", "", "User ID associated with the session (required)")
 	destroySessionCmd.Flags().StringP("kasm_id", "k", "", "Kasm ID of the session to be destroyed (required)")
 	destroySessionCmd.MarkFlagRequired("user_id")
 	destroySessionCmd.MarkFlagRequired("kasm_id")
 }
 
-// Update User Command
-var updateUserCmd = &cobra.Command{
-	Use:   "update-user",
-	Short: "Update an existing user in Kasm",
-	Run: func(cmd *cobra.Command, args []string) {
-		userID, _ := cmd.Flags().GetString("user_id")
-		firstName, _ := cmd.Flags().GetString("first_name")
-		lastName, _ := cmd.Flags().GetString("last_name")
-
-		checkRequiredParams(map[string]string{
-			"user_id": userID,
-		})
-
-		request := api.UpdateUserRequest{
-			APIKey:       apiKey,
-			APIKeySecret: apiSecret,
-			TargetUser: api.UserInfo{
-				UserID:    userID,
-				FirstName: firstName,
-				LastName:  lastName,
-			},
-		}
-
-		response, err := apiInstance.UpdateUser(request)
-		if err != nil {
-			log.Fatalf("Error updating user: %v", err)
-		}
-
-		fmt.Printf("User updated successfully: %+v\n", response)
-	},
+// SSH command group
+var sshCmd = &cobra.Command{
+	Use:   "ssh",
+	Short: "SSH management commands",
+	Long:  "Manage SSH connections and file transfers for Kasm sessions.",
 }
 
-func init() {
-	updateUserCmd.Flags().StringP("user_id", "u", "", "User ID to update (required)")
-	updateUserCmd.Flags().StringP("first_name", "f", "", "First name of the user")
-	updateUserCmd.Flags().StringP("last_name", "l", "", "Last name of the user")
-	updateUserCmd.MarkFlagRequired("user_id")
-}
-
-// SSH Connect Command
+// SSH subcommand: Connect to a remote server
 var sshConnectCmd = &cobra.Command{
-	Use:   "ssh-connect",
-	Short: "Initiate SSH connection to a running Kasm session",
-	Run: func(cmd *cobra.Command, args []string) {
-		userID, _ := cmd.Flags().GetString("user_id")
-		kasmID, _ := cmd.Flags().GetString("kasm_id")
-		sshUser, _ := cmd.Flags().GetString("ssh_user")
-		keyFile, _ := cmd.Flags().GetString("key_file")
-
-		// Check required parameters
-		if userID == "" || kasmID == "" {
-			log.Fatalf("User ID and Kasm ID are required fields")
-		}
-
-		// Fetch the session status to get the connection details
-		sessionStatus, err := apiInstance.GetKasmStatus(userID, kasmID)
-		if err != nil {
-			log.Fatalf("Error retrieving Kasm session status: %v", err)
-		}
-
-		// Check if the session is in a running state
-		if sessionStatus.OperationalStatus != "running" {
-			log.Fatalf("Session is not in running state. Current status: %s", sessionStatus.OperationalStatus)
-		}
-
-		// Assuming the host and port information are available in the session status response
-		host := sessionStatus.OperationalMessage // Replace with the correct field that contains the host
-		port := 22                               // Assuming the standard SSH port
-
-		// Create the SSH command
-		sshCommand := []string{"ssh", fmt.Sprintf("%s@%s", sshUser, host), "-p", fmt.Sprintf("%d", port)}
-		if keyFile != "" {
-			sshCommand = append(sshCommand, "-i", keyFile)
-		}
-
-		// Execute the SSH command
-		execCmd := exec.Command(sshCommand[0], sshCommand[1:]...)
-		execCmd.Stdout = log.Writer()
-		execCmd.Stderr = log.Writer()
-
-		log.Printf("Initiating SSH connection to %s@%s:%d...", sshUser, host, port)
-		if err := execCmd.Run(); err != nil {
-			log.Fatalf("Failed to establish SSH connection: %v", err)
-		}
-	},
-}
-
-func init() {
-	sshConnectCmd.Flags().StringP("user_id", "u", "", "User ID associated with the Kasm session (required)")
-	sshConnectCmd.Flags().StringP("kasm_id", "k", "", "Kasm ID of the session to connect via SSH (required)")
-	sshConnectCmd.Flags().StringP("ssh_user", "s", "kasm-user", "SSH username for connection (default: kasm-user)")
-	sshConnectCmd.Flags().StringP("key_file", "i", "", "Path to SSH private key file (optional)")
-	sshConnectCmd.MarkFlagRequired("user_id")
-	sshConnectCmd.MarkFlagRequired("kasm_id")
-}
-
-// Docker Run Command to Execute Docker Commands over SSH
-var dockerRunCmd = &cobra.Command{
-	Use:   "docker-run",
-	Short: "Execute Docker commands over SSH on a remote server",
-	Long:  "Allows you to run Docker commands on a remote server via SSH, such as starting, stopping, and inspecting Docker containers.",
+	Use:   "connect",
+	Short: "Connect to a remote server via SSH",
 	Run: func(cmd *cobra.Command, args []string) {
 		host, _ := cmd.Flags().GetString("host")
+		port, _ := cmd.Flags().GetInt("port")
 		user, _ := cmd.Flags().GetString("user")
-		keyFile, _ := cmd.Flags().GetString("key_file")
-		dockerCommand, _ := cmd.Flags().GetString("docker_command")
+		password, _ := cmd.Flags().GetString("password")
+		privateKey, _ := cmd.Flags().GetString("private_key")
 
-		if host == "" || dockerCommand == "" {
-			log.Fatalf("Host and Docker command are required fields")
+		checkRequiredParams(map[string]string{
+			"host": host,
+			"user": user,
+		})
+
+		// Create new SSH client
+		client, err := ssh.NewSSHClient(host, port, user, password, privateKey)
+		if err != nil {
+			log.Fatalf("Error creating SSH client: %v", err)
+		}
+		defer client.Disconnect()
+
+		fmt.Printf("Connected to %s:%d as %s\n", host, port, user)
+	},
+}
+
+// SSH subcommand: Upload a file to the remote server
+var sshUploadCmd = &cobra.Command{
+	Use:   "upload",
+	Short: "Upload a local file to the remote server via SCP",
+	Run: func(cmd *cobra.Command, args []string) {
+		host, _ := cmd.Flags().GetString("host")
+		port, _ := cmd.Flags().GetInt("port")
+		user, _ := cmd.Flags().GetString("user")
+		password, _ := cmd.Flags().GetString("password")
+		privateKey, _ := cmd.Flags().GetString("private_key")
+		localPath, _ := cmd.Flags().GetString("local")
+		remotePath, _ := cmd.Flags().GetString("remote")
+
+		checkRequiredParams(map[string]string{
+			"host":   host,
+			"user":   user,
+			"local":  localPath,
+			"remote": remotePath,
+		})
+
+		// Create new SSH client
+		client, err := ssh.NewSSHClient(host, port, user, password, privateKey)
+		if err != nil {
+			log.Fatalf("Error creating SSH client: %v", err)
+		}
+		defer client.Disconnect()
+
+		// Upload file
+		err = client.UploadFile(localPath, remotePath)
+		if err != nil {
+			log.Fatalf("Error uploading file: %v", err)
 		}
 
-		// Prepare the SSH command to execute the Docker command on the remote server
-		sshCommand := []string{"ssh", fmt.Sprintf("%s@%s", user, host), "-p", "22"}
-		if keyFile != "" {
-			sshCommand = append(sshCommand, "-i", keyFile)
+		fmt.Printf("File uploaded to %s\n", remotePath)
+	},
+}
+
+// SSH subcommand: Download a file from the remote server
+var sshDownloadCmd = &cobra.Command{
+	Use:   "download",
+	Short: "Download a file from the remote server via SCP",
+	Run: func(cmd *cobra.Command, args []string) {
+		host, _ := cmd.Flags().GetString("host")
+		port, _ := cmd.Flags().GetInt("port")
+		user, _ := cmd.Flags().GetString("user")
+		password, _ := cmd.Flags().GetString("password")
+		privateKey, _ := cmd.Flags().GetString("private_key")
+		localPath, _ := cmd.Flags().GetString("local")
+		remotePath, _ := cmd.Flags().GetString("remote")
+
+		checkRequiredParams(map[string]string{
+			"host":   host,
+			"user":   user,
+			"local":  localPath,
+			"remote": remotePath,
+		})
+
+		// Create new SSH client
+		client, err := ssh.NewSSHClient(host, port, user, password, privateKey)
+		if err != nil {
+			log.Fatalf("Error creating SSH client: %v", err)
+		}
+		defer client.Disconnect()
+
+		// Download file
+		err = client.DownloadFile(remotePath, localPath)
+		if err != nil {
+			log.Fatalf("Error downloading file: %v", err)
 		}
 
-		// Append the Docker command to the SSH command
-		sshCommand = append(sshCommand, dockerCommand)
-
-		// Execute the SSH command with the Docker command
-		execCmd := exec.Command(sshCommand[0], sshCommand[1:]...)
-		execCmd.Stdout = log.Writer()
-		execCmd.Stderr = log.Writer()
-
-		log.Printf("Executing Docker command on %s: %s", host, dockerCommand)
-		if err := execCmd.Run(); err != nil {
-			log.Fatalf("Failed to execute Docker command: %v", err)
-		}
+		fmt.Printf("File downloaded to %s\n", localPath)
 	},
 }
 
 func init() {
-	dockerRunCmd.Flags().StringP("host", "H", "", "Hostname or IP address of the remote server (required)")
-	dockerRunCmd.Flags().StringP("user", "u", "root", "SSH username for connection (default: root)")
-	dockerRunCmd.Flags().StringP("key_file", "k", "", "Path to SSH private key file (optional)")
-	dockerRunCmd.Flags().StringP("docker_command", "d", "", "Docker command to execute on the remote server (required)")
-	dockerRunCmd.MarkFlagRequired("host")
-	dockerRunCmd.MarkFlagRequired("docker_command")
+	// Add subcommands to sshCmd group
+	sshCmd.AddCommand(sshConnectCmd)
+	sshCmd.AddCommand(sshUploadCmd)
+	sshCmd.AddCommand(sshDownloadCmd)
+
+	// Common SSH flags for all SSH subcommands
+	sshCmd.PersistentFlags().StringP("host", "H", "", "SSH server hostname (required)")
+	sshCmd.PersistentFlags().IntP("port", "P", 22, "SSH server port (default: 22)")
+	sshCmd.PersistentFlags().StringP("user", "u", "", "SSH username (required)")
+	sshCmd.PersistentFlags().StringP("password", "p", "", "SSH password (optional)")
+	sshCmd.PersistentFlags().StringP("private_key", "i", "", "Path to SSH private key file (optional)")
+
+	// Flags for upload command
+	sshUploadCmd.Flags().StringP("local", "l", "", "Local file path to upload (required)")
+	sshUploadCmd.Flags().StringP("remote", "r", "", "Remote destination path (required)")
+	sshUploadCmd.MarkFlagRequired("local")
+	sshUploadCmd.MarkFlagRequired("remote")
+
+	// Flags for download command
+	sshDownloadCmd.Flags().StringP("local", "l", "", "Local destination path to download file to (required)")
+	sshDownloadCmd.Flags().StringP("remote", "r", "", "Remote file path to download (required)")
+	sshDownloadCmd.MarkFlagRequired("local")
+	sshDownloadCmd.MarkFlagRequired("remote")
 }

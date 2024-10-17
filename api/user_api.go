@@ -6,30 +6,29 @@ import (
 	"log"
 )
 
-// CreateUser creates a new user in the Kasm system.
-func (api *KasmAPI) CreateUser(user CreateUserRequest) (*UserResponse, error) {
+func (api *KasmAPI) CreateUser(user TargetUser) (*UserResponse, error) {
 	url := fmt.Sprintf("%s/api/public/create_user", api.BaseURL)
-	log.Printf("Creating user with username: %s", user.TargetUser.Username)
-	response, err := api.MakePostRequest(url, user)
+	payload := map[string]interface{}{
+		"api_key":        api.APIKey,
+		"api_key_secret": api.APIKeySecret,
+		"target_user":    user,
+	}
+
+	response, err := api.MakePostRequest(url, payload)
 	if err != nil {
-		log.Printf("Error creating user: %v", err)
 		return nil, err
 	}
 
 	var createdUser UserResponse
 	if err := json.Unmarshal(response, &createdUser); err != nil {
-		log.Printf("Failed to decode response: %v", err)
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	log.Printf("Successfully created user with ID: %s", createdUser.UserID)
 	return &createdUser, nil
 }
 
-// GetUser retrieves a user's details from the Kasm system.
-func (api *KasmAPI) GetUser(userID string, username string) (*UserResponse, error) {
+func (api *KasmAPI) GetUser(userID, username string) (*UserResponse, error) {
 	url := fmt.Sprintf("%s/api/public/get_user", api.BaseURL)
-	log.Printf("Retrieving user with ID: %s or username: %s", userID, username)
 	payload := map[string]interface{}{
 		"api_key":        api.APIKey,
 		"api_key_secret": api.APIKeySecret,
@@ -41,69 +40,66 @@ func (api *KasmAPI) GetUser(userID string, username string) (*UserResponse, erro
 
 	response, err := api.MakePostRequest(url, payload)
 	if err != nil {
-		log.Printf("Error retrieving user: %v", err)
 		return nil, err
 	}
 
 	var user UserResponse
 	if err := json.Unmarshal(response, &user); err != nil {
-		log.Printf("Failed to decode response: %v", err)
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	log.Printf("Successfully retrieved user with ID: %s", user.UserID)
 	return &user, nil
 }
 
-// GetUsers retrieves the list of users registered in the system.
 func (api *KasmAPI) GetUsers() ([]UserResponse, error) {
 	url := fmt.Sprintf("%s/api/public/get_users", api.BaseURL)
-	log.Printf("Retrieving list of users from URL: %s", url)
 	payload := map[string]interface{}{
 		"api_key":        api.APIKey,
 		"api_key_secret": api.APIKeySecret,
 	}
 
+	// Make the POST request
 	response, err := api.MakePostRequest(url, payload)
 	if err != nil {
-		log.Printf("Error retrieving users: %v", err)
 		return nil, err
 	}
 
-	var users []UserResponse
-	if err := json.Unmarshal(response, &users); err != nil {
-		log.Printf("Failed to decode response: %v", err)
+	// Struct to hold parsed users
+	var parsedResponse struct {
+		Users []UserResponse `json:"users"`
+	}
+
+	// Parse the response
+	if err := json.Unmarshal(response, &parsedResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	log.Printf("Successfully retrieved %d users", len(users))
-	return users, nil
+	return parsedResponse.Users, nil
 }
 
-// UpdateUser updates a user's details in the Kasm system.
-func (api *KasmAPI) UpdateUser(user UpdateUserRequest) (*UserResponse, error) {
+func (api *KasmAPI) UpdateUser(user TargetUser) (*UserResponse, error) {
 	url := fmt.Sprintf("%s/api/public/update_user", api.BaseURL)
-	log.Printf("Updating user with ID: %s", user.TargetUser.UserID)
-	response, err := api.MakePostRequest(url, user)
+	payload := map[string]interface{}{
+		"api_key":        api.APIKey,
+		"api_key_secret": api.APIKeySecret,
+		"target_user":    user,
+	}
+
+	response, err := api.MakePostRequest(url, payload)
 	if err != nil {
-		log.Printf("Error updating user: %v", err)
 		return nil, err
 	}
 
 	var updatedUser UserResponse
 	if err := json.Unmarshal(response, &updatedUser); err != nil {
-		log.Printf("Failed to decode response: %v", err)
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	log.Printf("Successfully updated user with ID: %s", updatedUser.UserID)
 	return &updatedUser, nil
 }
 
-// DeleteUser deletes a user from the Kasm system.
 func (api *KasmAPI) DeleteUser(userID string, force bool) error {
 	url := fmt.Sprintf("%s/api/public/delete_user", api.BaseURL)
-	log.Printf("Deleting user with ID: %s (force: %v)", userID, force)
 	payload := map[string]interface{}{
 		"api_key":        api.APIKey,
 		"api_key_secret": api.APIKeySecret,
@@ -113,22 +109,12 @@ func (api *KasmAPI) DeleteUser(userID string, force bool) error {
 		"force": force,
 	}
 
-	response, err := api.MakePostRequest(url, payload)
-	if err != nil {
-		log.Printf("Error deleting user: %v", err)
-		return err
-	}
-
-	if len(response) > 0 {
-		log.Printf("User %s successfully deleted", userID)
-	}
-	return nil
+	_, err := api.MakePostRequest(url, payload)
+	return err
 }
 
-// LogoutUser logs out all sessions for an existing user.
 func (api *KasmAPI) LogoutUser(userID string) error {
 	url := fmt.Sprintf("%s/api/public/logout_user", api.BaseURL)
-	log.Printf("Logging out user with ID: %s", userID)
 	payload := map[string]interface{}{
 		"api_key":        api.APIKey,
 		"api_key_secret": api.APIKeySecret,
@@ -137,22 +123,12 @@ func (api *KasmAPI) LogoutUser(userID string) error {
 		},
 	}
 
-	response, err := api.MakePostRequest(url, payload)
-	if err != nil {
-		log.Printf("Error logging out user: %v", err)
-		return err
-	}
-
-	if len(response) > 0 {
-		log.Printf("User %s successfully logged out", userID)
-	}
-	return nil
+	_, err := api.MakePostRequest(url, payload)
+	return err
 }
 
-// GetUserAttributes retrieves the attribute (preferences) settings for an existing user.
-func (api *KasmAPI) GetUserAttributes(userID string) (*UserAttributesResponse, error) {
+func (api *KasmAPI) GetUserAttributes(userID string) (*UserAttributes, error) {
 	url := fmt.Sprintf("%s/api/public/get_attributes", api.BaseURL)
-	log.Printf("Retrieving attributes for user with ID: %s", userID)
 	payload := map[string]interface{}{
 		"api_key":        api.APIKey,
 		"api_key_secret": api.APIKeySecret,
@@ -163,32 +139,100 @@ func (api *KasmAPI) GetUserAttributes(userID string) (*UserAttributesResponse, e
 
 	response, err := api.MakePostRequest(url, payload)
 	if err != nil {
-		log.Printf("Error retrieving user attributes: %v", err)
 		return nil, err
 	}
 
-	var userAttributes UserAttributesResponse
-	if err := json.Unmarshal(response, &userAttributes); err != nil {
-		log.Printf("Failed to decode response: %v", err)
+	var attributes UserAttributes
+	if err := json.Unmarshal(response, &attributes); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	log.Printf("Successfully retrieved attributes for user with ID: %s", userID)
-	return &userAttributes, nil
+	return &attributes, nil
 }
 
-// UpdateUserAttributes updates a user's attributes in the Kasm system.
-func (api *KasmAPI) UpdateUserAttributes(attributes UpdateUserAttributesRequest) error {
+func (api *KasmAPI) UpdateUserAttributes(attributes UserAttributes) error {
 	url := fmt.Sprintf("%s/api/public/update_user_attributes", api.BaseURL)
-	log.Printf("Updating attributes for user with ID: %s", attributes.UserID)
-	response, err := api.MakePostRequest(url, attributes)
+	payload := map[string]interface{}{
+		"api_key":                api.APIKey,
+		"api_key_secret":         api.APIKeySecret,
+		"target_user_attributes": attributes,
+	}
+
+	_, err := api.MakePostRequest(url, payload)
+	return err
+}
+
+func (api *KasmAPI) AddUserToGroup(userID string, groupID string) error {
+	url := fmt.Sprintf("%s/api/public/add_user_group", api.BaseURL)
+	log.Printf("Adding user %s to group %s", userID, groupID)
+
+	// Create the request payload
+	request := GroupUserRequest{
+		APIKey:       api.APIKey,
+		APIKeySecret: api.APIKeySecret,
+	}
+	request.TargetUser.UserID = userID
+	request.TargetGroup.GroupID = groupID
+
+	// Make the API request
+	_, err := api.MakePostRequest(url, request)
 	if err != nil {
-		log.Printf("Error updating user attributes: %v", err)
+		log.Printf("Error adding user to group: %v", err)
 		return err
 	}
 
-	if len(response) > 0 {
-		log.Printf("User attributes successfully updated for user %s", attributes.UserID)
-	}
+	log.Printf("User %s successfully added to group %s", userID, groupID)
 	return nil
+}
+
+func (api *KasmAPI) RemoveUserFromGroup(userID string, groupID string) error {
+	url := fmt.Sprintf("%s/api/public/remove_user_group", api.BaseURL)
+	log.Printf("Removing user %s from group %s", userID, groupID)
+
+	// Create the request payload
+	request := GroupUserRequest{
+		APIKey:       api.APIKey,
+		APIKeySecret: api.APIKeySecret,
+	}
+	request.TargetUser.UserID = userID
+	request.TargetGroup.GroupID = groupID
+
+	// Make the API request
+	_, err := api.MakePostRequest(url, request)
+	if err != nil {
+		log.Printf("Error removing user from group: %v", err)
+		return err
+	}
+
+	log.Printf("User %s successfully removed from group %s", userID, groupID)
+	return nil
+}
+
+func (api *KasmAPI) GenerateLoginLink(userID string) (string, error) {
+	url := fmt.Sprintf("%s/api/public/get_login", api.BaseURL)
+	log.Printf("Generating login link for user %s", userID)
+
+	// Create the request payload
+	request := LoginRequest{
+		APIKey:       api.APIKey,
+		APIKeySecret: api.APIKeySecret,
+	}
+	request.TargetUser.UserID = userID
+
+	// Make the API request
+	response, err := api.MakePostRequest(url, request)
+	if err != nil {
+		log.Printf("Error generating login link: %v", err)
+		return "", err
+	}
+
+	// Parse the response
+	var loginResponse LoginResponse
+	if err := json.Unmarshal(response, &loginResponse); err != nil {
+		log.Printf("Failed to decode response: %v", err)
+		return "", fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	log.Printf("Login link generated for user %s: %s", userID, loginResponse.URL)
+	return loginResponse.URL, nil
 }

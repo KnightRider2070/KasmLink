@@ -4,9 +4,10 @@ import "log"
 
 // KasmAPI holds the base URL and credentials for making requests to the KASM API.
 type KasmAPI struct {
-	BaseURL      string
-	APIKey       string
-	APIKeySecret string
+	BaseURL             string
+	APIKey              string
+	APIKeySecret        string
+	SkipTLSVerification bool
 }
 
 // NewKasmAPI creates a new instance of KasmAPI with provided credentials.
