@@ -29,9 +29,6 @@ Godeps/
 *~
 *.bak
 
-# Go modules
-/go.sum
-
 # Go workspace files
 go.work
 go.work.sum
