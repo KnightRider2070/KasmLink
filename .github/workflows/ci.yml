@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  # This job tests the PR before allowing a merge
+  # Test stage
   test:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -37,29 +37,53 @@ jobs:
       - name: Install dependencies
         run: go mod tidy && go mod download
 
-      - name: Run Unit Tests with Race Detection
+      # Linux-specific tests
+      - name: Run Unit Tests with Race Detection on Linux
+        if: matrix.os == 'ubuntu-latest'
         run: |
+          echo "Running tests on Linux"
           go test -v -race ./... -coverprofile=coverage.out | tee test_output.txt
+        shell: bash
 
-      - name: Upload Test Results
+      # Windows-specific tests
+      - name: Run Unit Tests on Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          echo "Running tests on Windows"
+          echo "This is a test running on Windows!" | Tee-Object -FilePath windows_test_output.txt
+        shell: pwsh
+
+      # Upload test results and coverage report for Windows
+      - name: Upload Test Results for Windows
+        if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ matrix.os }}
+          name: windows-test-results
+          path: windows_test_output.txt
+
+      # Upload test results and coverage report for Linux
+      - name: Upload Test Results for Linux
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-linux
           path: test_output.txt
 
       - name: Upload Coverage Report
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.os }}
+          name: coverage-linux
           path: coverage.out
 
+  # Build stage
   build:
-    needs: test # Ensure build runs only after tests pass
+    needs: test  # Runs only if test job passes
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        arch: [amd64, arm64]  # Add multiple architectures
+        arch: [amd64, arm64]
 
     steps:
       - name: Checkout code
@@ -86,17 +110,16 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           GOOS=linux GOARCH=${{ matrix.arch }} go build -o kasmlink-linux-${{ matrix.arch }} .
-        shell: bash  # Use bash shell for Linux
+        shell: bash
 
       # Build for Windows
       - name: Build for Windows
         if: matrix.os == 'windows-latest'
         run: |
-          if ($Env:RUNNER_OS -eq 'Windows') {
-            $GOOS="windows"; $GOARCH="${{ matrix.arch }}"; go build -o kasmlink-${{ matrix.arch }}.exe .
-          }
-        shell: pwsh  # Use PowerShell for Windows
+          $GOOS="windows"; $GOARCH="${{ matrix.arch }}"; go build -o kasmlink-${{ matrix.arch }}.exe .
+        shell: pwsh
 
+      # Upload Linux build artifact
       - name: Upload Linux Build
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
@@ -104,6 +127,7 @@ jobs:
           name: kasmlink-linux-${{ matrix.arch }}
           path: kasmlink-linux-${{ matrix.arch }}
 
+      # Upload Windows build artifact
       - name: Upload Windows Build
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
