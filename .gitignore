@@ -1,0 +1,47 @@
+# Binaries
+/bin/
+/bin/*
+
+# Build output
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, build with `go test -c`
+*_test.go
+*.test
+
+# Coverage files
+*.out
+*.cover
+
+# Dependency directories
+vendor/
+Godeps/
+
+# IDE and editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.bak
+
+# Go modules
+/go.sum
+
+# Go workspace files
+go.work
+go.work.sum
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+#VSCode
+.vscode
