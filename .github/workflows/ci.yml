@@ -71,9 +71,9 @@ jobs:
       - name: Build for ${{ matrix.os }}
         run: |
           if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-            GOOS=linux GOARCH=amd64 go build -o kasmlink-linux ./cmd
+            GOOS=linux GOARCH=amd64 go build -o kasmlink-linux .
           elif [ "${{ matrix.os }}" == "windows-latest" ]; then
-            GOOS=windows GOARCH=amd64 go build -o kasmlink.exe ./cmd
+            GOOS=windows GOARCH=amd64 go build -o kasmlink.exe .
           fi
 
       - name: Upload Linux Build
