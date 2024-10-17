@@ -1,62 +1,38 @@
-# Release Workflow - Manual Trigger when pushing a tag
+name: goreleaser
+
 on:
   push:
+    # Trigger only on tags
     tags:
-      - "v*" # Only runs when a version tag is pushed (e.g., v1.0.0)
+      - "v*"
+
+permissions:
+  contents: write
 
 jobs:
-  release:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, windows-latest ]
+  goreleaser:
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
-
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for GoReleaser to work properly
+      
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
-          go-version: "1.20"
+          go-version: stable
 
-      - name: Cache Go modules
-        uses: actions/cache@v2
+      # Optional: Add steps for additional dependencies like Docker, GPG, etc.
+      # - name: Docker login, GPG key import, etc.
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
         with:
-          path: ~/.cache/go-build
-          key: ${{ runner.os }}-go-build-${{ hashFiles('**/*.go') }}
-          restore-keys: |
-            ${{ runner.os }}-go-build-
-
-      - name: Install dependencies
-        run: go mod tidy && go mod download
-
-      - name: Build for ${{ matrix.os }}
-        run: |
-          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-            GOOS=linux GOARCH=amd64 go build -o kasmlink-linux ./cmd
-          elif [ "${{ matrix.os }}" == "windows-latest" ]; then
-            GOOS=windows GOARCH=amd64 go build -o kasmlink.exe ./cmd
-          fi
-
-      - name: Upload Linux Release
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-release-asset@v1
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean  # Clean previous builds before running
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: kasmlink-linux
-          asset_name: kasmlink-linux-${{ github.ref_name }}
-          asset_content_type: application/octet-stream
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use the default GitHub token
 
-      - name: Upload Windows Release
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: kasmlink.exe
-          asset_name: kasmlink-windows-${{ github.ref_name }}
-          asset_content_type: application/octet-stream
