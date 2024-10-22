@@ -1,7 +1,9 @@
 package main
 
-import "kasmlink/commands"
+import (
+	"kasmlink/cmd"
+)
 
 func main() {
-	commands.Execute()
+	cmd.Execute()
 }

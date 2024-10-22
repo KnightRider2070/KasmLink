@@ -1,44 +1,28 @@
-# Binaries
-/bin/
-/bin/*
+.vscode
+.idea
 
-# Build output
+# If you prefer the allow list template instead of the deny list, see community template:
+# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
+#
+# Binaries for programs and plugins
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
 
-# Test binary, build with `go test -c`
-*_test.go
+# Test binary, built with `go test -c`
 *.test
 
-# Coverage files
+# Output of the go coverage tool, specifically when used with LiteIDE
 *.out
-*.cover
 
-# Dependency directories
-vendor/
-Godeps/
-
-# IDE and editor directories
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-*.bak
-
-# Go workspace files
+# Go workspace file
 go.work
 go.work.sum
 
-# OS generated files
-.DS_Store
-Thumbs.db
+# env file
+.env
 
-# Logs
-*.log
-
-#VSCode
-.vscode
+#Image Exports
+kasm-suse-vscode.tar
