@@ -1,7 +1,7 @@
 # KasmLink
 
 <div align="center">
-  <img src="logo.webp" alt="KasmLink Logo" />
+  <img src="logo.webp" alt="KasmLink Logo"  width="200" />
 </div>
 KasmLink is a powerful command-line interface (CLI) tool that enables developers to seamlessly deploy GPU-accelerated containers and isolated environments for clients using Docker and Kasm technologies.
 
