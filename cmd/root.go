@@ -2,32 +2,45 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
+	"log"
 	"os"
+
+	"github.com/spf13/cobra"
 )
 
-// rootCmd is the base command for the Kasm CLI tool.
-var rootCmd = &cobra.Command{
+// Version of the CLI tool
+const Version = "1.0.0"
+
+// RootCmd is the base command for the Kasm CLI tool.
+var RootCmd = &cobra.Command{
 	Use:   "kasmlink",
 	Short: "Kasm Link CLI",
-	Long:  `T.B.D.A`,
+	Long:  `Kasm Link CLI - A command line tool to manage Kasm resources and Docker components.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// This will be executed if no subcommands are provided
-		fmt.Println("Welcome to the Kasm Link. Use 'kasmlink --help' to see available commands.")
+		fmt.Println("Welcome to Kasm Link CLI. Use 'kasmlink --help' to see available commands.")
 	},
+	Version: Version, // Adding version information to the root command
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
+// Execute runs the RootCmd and handles any top-level errors.
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	if err := RootCmd.Execute(); err != nil {
+		log.Fatalf("Error: %v", err)
 	}
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringP("apikey", "k", "", "API key for authentication")
-	rootCmd.PersistentFlags().StringP("secret", "s", "", "API secret for authentication")
+	// Persistent flag for setting verbosity
+	RootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output")
 
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Version flag to print the version
+	RootCmd.PersistentFlags().Bool("version", false, "Display the version of Kasm Link CLI")
+
+	// Hook to handle version flag
+	RootCmd.PreRun = func(cmd *cobra.Command, args []string) {
+		if v, _ := cmd.Flags().GetBool("version"); v {
+			fmt.Printf("Kasm Link CLI Version: %s\n", Version)
+			os.Exit(0)
+		}
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/docker/docker/client"
+	"github.com/rs/zerolog/log"
 	"io"
 	"os"
 	"os/exec"
@@ -12,137 +13,140 @@ import (
 
 // PullImage pulls a Docker image from a registry.
 func PullImage(imageName string) error {
+	log.Info().Str("image_name", imageName).Msg("Pulling Docker image")
 	cmd := exec.Command("docker", "pull", imageName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to pull image: %v - %s", err, string(output))
+		log.Error().Err(err).Str("output", string(output)).Msg("Failed to pull Docker image")
+		return fmt.Errorf("failed to pull image: %w", err)
 	}
-	fmt.Printf("Image %s pulled successfully.\n", imageName)
+	log.Info().Str("image_name", imageName).Msg("Docker image pulled successfully")
 	return nil
 }
 
 // PushImage pushes a Docker image to a registry.
 func PushImage(imageName string) error {
+	log.Info().Str("image_name", imageName).Msg("Pushing Docker image")
 	cmd := exec.Command("docker", "push", imageName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to push image: %v - %s", err, string(output))
+		log.Error().Err(err).Str("output", string(output)).Msg("Failed to push Docker image")
+		return fmt.Errorf("failed to push image: %w", err)
 	}
-	fmt.Printf("Image %s pushed successfully.\n", imageName)
+	log.Info().Str("image_name", imageName).Msg("Docker image pushed successfully")
 	return nil
 }
 
 // RemoveImage removes a Docker image by name or ID.
 func RemoveImage(imageName string) error {
+	log.Info().Str("image_name", imageName).Msg("Removing Docker image")
 	cmd := exec.Command("docker", "rmi", imageName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to remove image: %v - %s", err, string(output))
+		log.Error().Err(err).Str("output", string(output)).Msg("Failed to remove Docker image")
+		return fmt.Errorf("failed to remove image: %w", err)
 	}
-	fmt.Printf("Image %s removed successfully.\n", imageName)
+	log.Info().Str("image_name", imageName).Msg("Docker image removed successfully")
 	return nil
 }
 
 // ListImages lists all Docker images on the host.
 func ListImages() ([]string, error) {
+	log.Info().Msg("Listing all Docker images")
 	cmd := exec.Command("docker", "images", "--format", "{{.Repository}}:{{.Tag}}")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list Docker images: %v - %s", err, string(output))
+		log.Error().Err(err).Str("output", string(output)).Msg("Failed to list Docker images")
+		return nil, fmt.Errorf("failed to list Docker images: %w", err)
 	}
 
-	// Split the output into lines and return the image names (with tags)
 	images := strings.Split(strings.TrimSpace(string(output)), "\n")
+	log.Info().Int("image_count", len(images)).Msg("Docker images listed successfully")
 	return images, nil
 }
 
 // UpdateAllImages pulls the latest version of all present Docker images.
 func UpdateAllImages() error {
-	// Get the list of all images
 	images, err := ListImages()
 	if err != nil {
-		return fmt.Errorf("failed to list Docker images: %v", err)
+		return fmt.Errorf("failed to list Docker images: %w", err)
 	}
 
-	// Iterate over each image and pull the latest version
 	for _, image := range images {
-		fmt.Printf("Updating image: %s\n", image)
+		log.Info().Str("image_name", image).Msg("Updating Docker image")
 		err := PullImage(image)
 		if err != nil {
-			return fmt.Errorf("failed to update image %s: %v", image, err)
+			log.Error().Err(err).Str("image_name", image).Msg("Failed to update Docker image")
+			return fmt.Errorf("failed to update image %s: %w", image, err)
 		}
 	}
 
-	fmt.Println("All images have been updated successfully.")
+	log.Info().Msg("All Docker images have been updated successfully")
 	return nil
 }
 
 // ExportImageToTar exports a Docker image to a tar file for later import
 func ExportImageToTar(imageName, outputFile string) error {
-	// Create a Docker client
+	log.Info().Str("image_name", imageName).Str("output_file", outputFile).Msg("Exporting Docker image to tar file")
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		return fmt.Errorf("could not create Docker client: %v", err)
+		log.Error().Err(err).Msg("Could not create Docker client")
+		return fmt.Errorf("could not create Docker client: %w", err)
 	}
 
-	// Fetch the image and save it as a tar archive
-	fmt.Printf("Saving Docker image %s to tar file %s...\n", imageName, outputFile)
 	imageReader, err := cli.ImageSave(context.Background(), []string{imageName})
 	if err != nil {
-		return fmt.Errorf("could not save Docker image: %v", err)
+		log.Error().Err(err).Str("image_name", imageName).Msg("Failed to save Docker image")
+		return fmt.Errorf("could not save Docker image: %w", err)
 	}
 	defer imageReader.Close()
 
-	// Check if the image exists and was fetched
-	if imageReader == nil {
-		return fmt.Errorf("image reader is nil, possibly failed to find image: %s", imageName)
-	}
-
-	// Create or open the output tar file
 	outFile, err := os.Create(outputFile)
 	if err != nil {
-		return fmt.Errorf("could not create tar file: %v", err)
+		log.Error().Err(err).Str("output_file", outputFile).Msg("Failed to create tar file")
+		return fmt.Errorf("could not create tar file: %w", err)
 	}
 	defer outFile.Close()
 
-	// Copy the image tarball from the Docker API to the file
 	written, err := io.Copy(outFile, imageReader)
 	if err != nil {
-		return fmt.Errorf("could not write image to tar file: %v", err)
+		log.Error().Err(err).Str("output_file", outputFile).Msg("Failed to write Docker image to tar file")
+		return fmt.Errorf("could not write image to tar file: %w", err)
 	}
 
-	fmt.Printf("Successfully saved %d bytes of image %s to %s\n", written, imageName, outputFile)
+	log.Info().Str("image_name", imageName).Str("output_file", outputFile).Int64("bytes_written", written).Msg("Docker image exported to tar file successfully")
 	return nil
 }
 
 // ImportImageFromTar imports a Docker image from a tar file
 func ImportImageFromTar(tarFilePath string) error {
-	// Create a Docker client
+	log.Info().Str("tar_file_path", tarFilePath).Msg("Importing Docker image from tar file")
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		return fmt.Errorf("could not create Docker client: %v", err)
+		log.Error().Err(err).Msg("Could not create Docker client")
+		return fmt.Errorf("could not create Docker client: %w", err)
 	}
 
-	// Open the tar file that contains the Docker image
 	tarFile, err := os.Open(tarFilePath)
 	if err != nil {
-		return fmt.Errorf("could not open tar file: %v", err)
+		log.Error().Err(err).Str("tar_file_path", tarFilePath).Msg("Failed to open tar file")
+		return fmt.Errorf("could not open tar file: %w", err)
 	}
 	defer tarFile.Close()
 
-	// Load the image into Docker from the tar file
 	imageLoadResponse, err := cli.ImageLoad(context.Background(), tarFile, true)
 	if err != nil {
-		return fmt.Errorf("could not load Docker image from tar: %v", err)
+		log.Error().Err(err).Str("tar_file_path", tarFilePath).Msg("Failed to load Docker image from tar")
+		return fmt.Errorf("could not load Docker image from tar: %w", err)
 	}
 	defer imageLoadResponse.Body.Close()
 
-	// Print the response
 	_, err = io.Copy(os.Stdout, imageLoadResponse.Body)
 	if err != nil {
-		return fmt.Errorf("could not read image load response: %v", err)
+		log.Error().Err(err).Str("tar_file_path", tarFilePath).Msg("Failed to read image load response")
+		return fmt.Errorf("could not read image load response: %w", err)
 	}
 
-	fmt.Printf("Docker image successfully loaded from %s\n", tarFilePath)
+	log.Info().Str("tar_file_path", tarFilePath).Msg("Docker image imported from tar file successfully")
 	return nil
 }

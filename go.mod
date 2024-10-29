@@ -6,6 +6,7 @@ require (
 	github.com/docker/docker v27.3.1+incompatible
 	github.com/fatih/color v1.18.0
 	github.com/google/go-github/v43 v43.0.0
+	github.com/rs/zerolog v1.33.0
 	github.com/spf13/cobra v1.8.1
 	golang.org/x/net v0.30.0
 	golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be
@@ -50,5 +51,5 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/crypto v0.28.0 // indirect
+	golang.org/x/crypto v0.28.0
 )

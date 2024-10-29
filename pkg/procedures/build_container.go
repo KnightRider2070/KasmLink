@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/fatih/color"
+	"github.com/rs/zerolog/log"
 	"io"
 	"os"
 	"path/filepath"
@@ -17,27 +18,37 @@ import (
 // BuildContainer builds a Docker image from a Dockerfile located in the specified build context directory.
 // It also tags the image with the provided tag name.
 func BuildContainer(buildContextDir, dockerfilePath, imageTag string) error {
+	log.Info().
+		Str("buildContextDir", buildContextDir).
+		Str("dockerfilePath", dockerfilePath).
+		Str("imageTag", imageTag).
+		Msg("Starting Docker image build process")
+
 	// Create a Docker client
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to create Docker client")
 		return fmt.Errorf("could not create Docker client: %v", err)
 	}
 
 	// Create a tar archive of the build context directory
 	buildContextTar, err := createTarWithBuildContext(buildContextDir)
 	if err != nil {
+		log.Error().Err(err).Str("buildContextDir", buildContextDir).Msg("Failed to create build context tar")
 		return fmt.Errorf("could not create build context tar: %v", err)
 	}
+	log.Debug().Msg("Build context tar created successfully")
 
 	// Build the Docker image
 	buildOptions := types.ImageBuildOptions{
-		Tags:       []string{imageTag}, // Tag the image with the provided tag
-		Dockerfile: dockerfilePath,     // Use the Dockerfile as the build file
-		Remove:     true,               // Remove intermediate containers after build
+		Tags:       []string{imageTag},
+		Dockerfile: dockerfilePath,
+		Remove:     true,
 	}
 
 	imageBuildResponse, err := cli.ImageBuild(context.Background(), buildContextTar, buildOptions)
 	if err != nil {
+		log.Error().Err(err).Str("imageTag", imageTag).Msg("Failed to build Docker image")
 		return fmt.Errorf("failed to build Docker image: %v", err)
 	}
 	defer imageBuildResponse.Body.Close()
@@ -45,20 +56,24 @@ func BuildContainer(buildContextDir, dockerfilePath, imageTag string) error {
 	// Print the build logs
 	err = printBuildLogs(imageBuildResponse.Body)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to read build response")
 		return fmt.Errorf("failed to read build response: %v", err)
 	}
 
+	log.Info().Str("imageTag", imageTag).Msg("Docker image built successfully")
 	return nil
 }
 
 // createTarWithBuildContext creates a tarball containing the build context (the directory with Dockerfile and other files)
 func createTarWithBuildContext(buildContextDir string) (io.Reader, error) {
+	log.Debug().Str("buildContextDir", buildContextDir).Msg("Creating tar with build context")
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
 
 	// Walk the build context directory and add each file to the tarball
 	err := filepath.Walk(buildContextDir, func(file string, fi os.FileInfo, err error) error {
 		if err != nil {
+			log.Error().Err(err).Str("file", file).Msg("Error accessing file during tar creation")
 			return err
 		}
 
@@ -68,25 +83,21 @@ func createTarWithBuildContext(buildContextDir string) (io.Reader, error) {
 			return fmt.Errorf("could not create tar header: %v", err)
 		}
 
-		// Use relative path for the file inside the tarball
-		// Normalize paths by replacing backslashes with forward slashes
+		// Normalize paths for Docker compatibility
 		header.Name, err = filepath.Rel(buildContextDir, file)
 		if err != nil {
 			return fmt.Errorf("could not get relative path: %v", err)
 		}
-
-		// Normalize path separators to forward slashes for Docker compatibility
 		header.Name = filepath.ToSlash(header.Name)
 
-		// Print the file being added to the tarball for debugging
-		fmt.Println("Adding file to build context:", header.Name)
+		log.Debug().Str("file", header.Name).Msg("Adding file to build context tar")
 
 		// Write the header to the tarball
 		if err := tw.WriteHeader(header); err != nil {
 			return fmt.Errorf("could not write header to tar: %v", err)
 		}
 
-		// If the file is a directory, no need to copy contents
+		// If the file is a directory, skip copying contents
 		if fi.IsDir() {
 			return nil
 		}
@@ -106,14 +117,17 @@ func createTarWithBuildContext(buildContextDir string) (io.Reader, error) {
 	})
 
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to create tar of build context")
 		return nil, fmt.Errorf("could not tar build context: %v", err)
 	}
 
 	// Close the tar writer
 	if err := tw.Close(); err != nil {
+		log.Error().Err(err).Msg("Failed to close tar writer")
 		return nil, fmt.Errorf("could not close tar writer: %v", err)
 	}
 
+	log.Debug().Msg("Build context tar creation completed successfully")
 	return buf, nil
 }
 
@@ -134,16 +148,19 @@ func printBuildLogs(reader io.Reader) error {
 	// Read each line from the Docker build output and print it
 	for decoder.More() {
 		if err := decoder.Decode(&msg); err != nil {
+			log.Error().Err(err).Msg("Error decoding Docker build logs")
 			return fmt.Errorf("error decoding build logs: %v", err)
 		}
 
 		// Check for errors in the Docker build logs
 		if msg.Error != "" {
+			log.Error().Str("error", msg.Error).Msg("Docker build log error")
 			fmt.Println(errorColor(fmt.Sprintf("Error: %s", msg.Error)))
 		}
 
 		// Print the normal stream of logs
 		if msg.Stream != "" {
+			log.Debug().Msgf("Docker build log: %s", msg.Stream)
 			fmt.Print(successColor(msg.Stream))
 		}
 	}

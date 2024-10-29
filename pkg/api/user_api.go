@@ -3,11 +3,14 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/rs/zerolog/log"
 )
 
+// CreateUser creates a new user in the KASM API.
 func (api *KasmAPI) CreateUser(user TargetUser) (*UserResponse, error) {
 	url := fmt.Sprintf("%s/api/public/create_user", api.BaseURL)
+	log.Info().Str("url", url).Str("user", user.Username).Msg("Creating new user")
+
 	payload := map[string]interface{}{
 		"api_key":        api.APIKey,
 		"api_key_secret": api.APIKeySecret,
@@ -16,19 +19,25 @@ func (api *KasmAPI) CreateUser(user TargetUser) (*UserResponse, error) {
 
 	response, err := api.MakePostRequest(url, payload)
 	if err != nil {
+		log.Error().Err(err).Str("user", user.Username).Msg("Failed to create user")
 		return nil, err
 	}
 
 	var createdUser UserResponse
 	if err := json.Unmarshal(response, &createdUser); err != nil {
+		log.Error().Err(err).Msg("Failed to decode create user response")
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
+	log.Info().Str("user_id", createdUser.UserID).Msg("User created successfully")
 	return &createdUser, nil
 }
 
+// GetUser retrieves user details by userID or username.
 func (api *KasmAPI) GetUser(userID, username string) (*UserResponse, error) {
 	url := fmt.Sprintf("%s/api/public/get_user", api.BaseURL)
+	log.Info().Str("url", url).Str("user_id", userID).Str("username", username).Msg("Fetching user details")
+
 	payload := map[string]interface{}{
 		"api_key":        api.APIKey,
 		"api_key_secret": api.APIKeySecret,
@@ -40,45 +49,54 @@ func (api *KasmAPI) GetUser(userID, username string) (*UserResponse, error) {
 
 	response, err := api.MakePostRequest(url, payload)
 	if err != nil {
+		log.Error().Err(err).Str("user_id", userID).Msg("Failed to fetch user details")
 		return nil, err
 	}
 
 	var user UserResponse
 	if err := json.Unmarshal(response, &user); err != nil {
+		log.Error().Err(err).Str("user_id", userID).Msg("Failed to decode get user response")
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
+	log.Info().Str("user_id", user.UserID).Msg("User details retrieved successfully")
 	return &user, nil
 }
 
+// GetUsers retrieves a list of all users.
 func (api *KasmAPI) GetUsers() ([]UserResponse, error) {
 	url := fmt.Sprintf("%s/api/public/get_users", api.BaseURL)
+	log.Info().Str("url", url).Msg("Fetching all users")
+
 	payload := map[string]interface{}{
 		"api_key":        api.APIKey,
 		"api_key_secret": api.APIKeySecret,
 	}
 
-	// Make the POST request
 	response, err := api.MakePostRequest(url, payload)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to fetch users")
 		return nil, err
 	}
 
-	// Struct to hold parsed users
 	var parsedResponse struct {
 		Users []UserResponse `json:"users"`
 	}
 
-	// Parse the response
 	if err := json.Unmarshal(response, &parsedResponse); err != nil {
+		log.Error().Err(err).Msg("Failed to decode get users response")
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
+	log.Info().Int("user_count", len(parsedResponse.Users)).Msg("Users retrieved successfully")
 	return parsedResponse.Users, nil
 }
 
+// UpdateUser updates an existing user's details.
 func (api *KasmAPI) UpdateUser(user TargetUser) (*UserResponse, error) {
 	url := fmt.Sprintf("%s/api/public/update_user", api.BaseURL)
+	log.Info().Str("url", url).Str("user_id", user.UserID).Msg("Updating user details")
+
 	payload := map[string]interface{}{
 		"api_key":        api.APIKey,
 		"api_key_secret": api.APIKeySecret,
@@ -87,19 +105,25 @@ func (api *KasmAPI) UpdateUser(user TargetUser) (*UserResponse, error) {
 
 	response, err := api.MakePostRequest(url, payload)
 	if err != nil {
+		log.Error().Err(err).Str("user_id", user.UserID).Msg("Failed to update user")
 		return nil, err
 	}
 
 	var updatedUser UserResponse
 	if err := json.Unmarshal(response, &updatedUser); err != nil {
+		log.Error().Err(err).Msg("Failed to decode update user response")
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
+	log.Info().Str("user_id", updatedUser.UserID).Msg("User updated successfully")
 	return &updatedUser, nil
 }
 
+// DeleteUser removes a user by userID with optional force.
 func (api *KasmAPI) DeleteUser(userID string, force bool) error {
 	url := fmt.Sprintf("%s/api/public/delete_user", api.BaseURL)
+	log.Info().Str("url", url).Str("user_id", userID).Bool("force", force).Msg("Deleting user")
+
 	payload := map[string]interface{}{
 		"api_key":        api.APIKey,
 		"api_key_secret": api.APIKeySecret,
@@ -110,11 +134,20 @@ func (api *KasmAPI) DeleteUser(userID string, force bool) error {
 	}
 
 	_, err := api.MakePostRequest(url, payload)
-	return err
+	if err != nil {
+		log.Error().Err(err).Str("user_id", userID).Msg("Failed to delete user")
+		return err
+	}
+
+	log.Info().Str("user_id", userID).Msg("User deleted successfully")
+	return nil
 }
 
+// LogoutUser logs a user out by userID.
 func (api *KasmAPI) LogoutUser(userID string) error {
 	url := fmt.Sprintf("%s/api/public/logout_user", api.BaseURL)
+	log.Info().Str("url", url).Str("user_id", userID).Msg("Logging out user")
+
 	payload := map[string]interface{}{
 		"api_key":        api.APIKey,
 		"api_key_secret": api.APIKeySecret,
@@ -124,11 +157,20 @@ func (api *KasmAPI) LogoutUser(userID string) error {
 	}
 
 	_, err := api.MakePostRequest(url, payload)
-	return err
+	if err != nil {
+		log.Error().Err(err).Str("user_id", userID).Msg("Failed to logout user")
+		return err
+	}
+
+	log.Info().Str("user_id", userID).Msg("User logged out successfully")
+	return nil
 }
 
+// GetUserAttributes retrieves the attributes of a user.
 func (api *KasmAPI) GetUserAttributes(userID string) (*UserAttributes, error) {
 	url := fmt.Sprintf("%s/api/public/get_attributes", api.BaseURL)
+	log.Info().Str("url", url).Str("user_id", userID).Msg("Fetching user attributes")
+
 	payload := map[string]interface{}{
 		"api_key":        api.APIKey,
 		"api_key_secret": api.APIKeySecret,
@@ -139,19 +181,25 @@ func (api *KasmAPI) GetUserAttributes(userID string) (*UserAttributes, error) {
 
 	response, err := api.MakePostRequest(url, payload)
 	if err != nil {
+		log.Error().Err(err).Str("user_id", userID).Msg("Failed to fetch user attributes")
 		return nil, err
 	}
 
 	var attributes UserAttributes
 	if err := json.Unmarshal(response, &attributes); err != nil {
+		log.Error().Err(err).Str("user_id", userID).Msg("Failed to decode user attributes response")
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
+	log.Info().Str("user_id", userID).Msg("User attributes retrieved successfully")
 	return &attributes, nil
 }
 
+// UpdateUserAttributes updates a user's attributes.
 func (api *KasmAPI) UpdateUserAttributes(attributes UserAttributes) error {
 	url := fmt.Sprintf("%s/api/public/update_user_attributes", api.BaseURL)
+	log.Info().Str("url", url).Str("user_id", attributes.UserID).Msg("Updating user attributes")
+
 	payload := map[string]interface{}{
 		"api_key":                api.APIKey,
 		"api_key_secret":         api.APIKeySecret,
@@ -159,80 +207,94 @@ func (api *KasmAPI) UpdateUserAttributes(attributes UserAttributes) error {
 	}
 
 	_, err := api.MakePostRequest(url, payload)
-	return err
+	if err != nil {
+		log.Error().Err(err).Str("user_id", attributes.UserID).Msg("Failed to update user attributes")
+		return err
+	}
+
+	log.Info().Str("user_id", attributes.UserID).Msg("User attributes updated successfully")
+	return nil
 }
 
-func (api *KasmAPI) AddUserToGroup(userID string, groupID string) error {
+// AddUserToGroup adds a user to a specific group.
+func (api *KasmAPI) AddUserToGroup(userID, groupID string) error {
 	url := fmt.Sprintf("%s/api/public/add_user_group", api.BaseURL)
-	log.Printf("Adding user %s to group %s", userID, groupID)
+	log.Info().Str("url", url).Str("user_id", userID).Str("group_id", groupID).Msg("Adding user to group")
 
-	// Create the request payload
-	request := GroupUserRequest{
-		APIKey:       api.APIKey,
-		APIKeySecret: api.APIKeySecret,
+	// Inline struct fields in the request
+	request := map[string]interface{}{
+		"api_key":        api.APIKey,
+		"api_key_secret": api.APIKeySecret,
+		"target_user": map[string]string{
+			"user_id": userID,
+		},
+		"target_group": map[string]string{
+			"group_id": groupID,
+		},
 	}
-	request.TargetUser.UserID = userID
-	request.TargetGroup.GroupID = groupID
 
-	// Make the API request
 	_, err := api.MakePostRequest(url, request)
 	if err != nil {
-		log.Printf("Error adding user to group: %v", err)
+		log.Error().Err(err).Str("user_id", userID).Str("group_id", groupID).Msg("Failed to add user to group")
 		return err
 	}
 
-	log.Printf("User %s successfully added to group %s", userID, groupID)
+	log.Info().Str("user_id", userID).Str("group_id", groupID).Msg("User added to group successfully")
 	return nil
 }
 
-func (api *KasmAPI) RemoveUserFromGroup(userID string, groupID string) error {
+// RemoveUserFromGroup removes a user from a specific group.
+func (api *KasmAPI) RemoveUserFromGroup(userID, groupID string) error {
 	url := fmt.Sprintf("%s/api/public/remove_user_group", api.BaseURL)
-	log.Printf("Removing user %s from group %s", userID, groupID)
+	log.Info().Str("url", url).Str("user_id", userID).Str("group_id", groupID).Msg("Removing user from group")
 
-	// Create the request payload
-	request := GroupUserRequest{
-		APIKey:       api.APIKey,
-		APIKeySecret: api.APIKeySecret,
+	// Inline struct fields in the request
+	request := map[string]interface{}{
+		"api_key":        api.APIKey,
+		"api_key_secret": api.APIKeySecret,
+		"target_user": map[string]string{
+			"user_id": userID,
+		},
+		"target_group": map[string]string{
+			"group_id": groupID,
+		},
 	}
-	request.TargetUser.UserID = userID
-	request.TargetGroup.GroupID = groupID
 
-	// Make the API request
 	_, err := api.MakePostRequest(url, request)
 	if err != nil {
-		log.Printf("Error removing user from group: %v", err)
+		log.Error().Err(err).Str("user_id", userID).Str("group_id", groupID).Msg("Failed to remove user from group")
 		return err
 	}
 
-	log.Printf("User %s successfully removed from group %s", userID, groupID)
+	log.Info().Str("user_id", userID).Str("group_id", groupID).Msg("User removed from group successfully")
 	return nil
 }
 
+// GenerateLoginLink generates a login link for a user.
 func (api *KasmAPI) GenerateLoginLink(userID string) (string, error) {
 	url := fmt.Sprintf("%s/api/public/get_login", api.BaseURL)
-	log.Printf("Generating login link for user %s", userID)
+	log.Info().Str("url", url).Str("user_id", userID).Msg("Generating login link")
 
-	// Create the request payload
-	request := LoginRequest{
-		APIKey:       api.APIKey,
-		APIKeySecret: api.APIKeySecret,
+	request := map[string]interface{}{
+		"api_key":        api.APIKey,
+		"api_key_secret": api.APIKeySecret,
+		"target_user": map[string]string{
+			"user_id": userID,
+		},
 	}
-	request.TargetUser.UserID = userID
 
-	// Make the API request
 	response, err := api.MakePostRequest(url, request)
 	if err != nil {
-		log.Printf("Error generating login link: %v", err)
+		log.Error().Err(err).Str("user_id", userID).Msg("Failed to generate login link")
 		return "", err
 	}
 
-	// Parse the response
 	var loginResponse LoginResponse
 	if err := json.Unmarshal(response, &loginResponse); err != nil {
-		log.Printf("Failed to decode response: %v", err)
-		return "", fmt.Errorf("failed to decode response: %v", err)
+		log.Error().Err(err).Str("user_id", userID).Msg("Failed to decode login link response")
+		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	log.Printf("Login link generated for user %s: %s", userID, loginResponse.URL)
+	log.Info().Str("user_id", userID).Str("login_url", loginResponse.URL).Msg("Login link generated successfully")
 	return loginResponse.URL, nil
 }

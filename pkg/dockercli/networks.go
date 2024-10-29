@@ -3,6 +3,7 @@ package dockercli
 import (
 	"errors"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"os/exec"
 	"strings"
 )
@@ -48,8 +49,11 @@ type NetworkOptions struct {
 func CreateDockerNetwork(opts NetworkOptions) error {
 	// Validate driver
 	if !opts.Driver.IsValid() {
+		log.Error().Str("driver", string(opts.Driver)).Msg("Invalid driver specified")
 		return errors.New("invalid driver: must be one of 'bridge', 'overlay', or 'none'")
 	}
+
+	log.Info().Str("network_name", opts.Name).Msg("Creating Docker network")
 
 	// Construct the base command
 	args := []string{"network", "create"}
@@ -107,71 +111,90 @@ func CreateDockerNetwork(opts NetworkOptions) error {
 	cmd := exec.Command("docker", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to create network: %v - %s", err, string(output))
+		log.Error().Err(err).Str("output", string(output)).Str("network_name", opts.Name).Msg("Failed to create Docker network")
+		return fmt.Errorf("failed to create network: %w", err)
 	}
 
-	fmt.Printf("Network %s created successfully.\n", opts.Name)
+	log.Info().Str("network_name", opts.Name).Msg("Docker network created successfully")
 	return nil
 }
 
 // InspectNetwork inspects a Docker network by name or ID.
 func InspectNetwork(networkName string) (string, error) {
+	log.Info().Str("network_name", networkName).Msg("Inspecting Docker network")
+
 	cmd := exec.Command("docker", "network", "inspect", networkName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("failed to inspect network: %v - %s", err, string(output))
+		log.Error().Err(err).Str("network_name", networkName).Str("output", string(output)).Msg("Failed to inspect Docker network")
+		return "", fmt.Errorf("failed to inspect network: %w", err)
 	}
+
+	log.Info().Str("network_name", networkName).Msg("Docker network inspected successfully")
 	return string(output), nil
 }
 
 // RemoveNetwork removes a Docker network by name or ID.
 func RemoveNetwork(networkName string) error {
+	log.Info().Str("network_name", networkName).Msg("Removing Docker network")
+
 	cmd := exec.Command("docker", "network", "rm", networkName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to remove network: %v - %s", err, string(output))
+		log.Error().Err(err).Str("network_name", networkName).Str("output", string(output)).Msg("Failed to remove Docker network")
+		return fmt.Errorf("failed to remove network: %w", err)
 	}
-	fmt.Printf("Network %s removed successfully.\n", networkName)
+
+	log.Info().Str("network_name", networkName).Msg("Docker network removed successfully")
 	return nil
 }
 
 // ListComposeNetworks lists all networks associated with the Docker Compose project.
 func ListComposeNetworks(composeFilePath string) (map[string]string, error) {
+	log.Info().Str("compose_file_path", composeFilePath).Msg("Listing networks in Docker Compose project")
+
 	cmd := exec.Command("docker-compose", "-f", composeFilePath, "config", "--services")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list networks: %v - %s", err, string(output))
+		log.Error().Err(err).Str("output", string(output)).Msg("Failed to list Docker Compose networks")
+		return nil, fmt.Errorf("failed to list networks: %w", err)
 	}
 
-	// Parse the output into a map of network names
 	lines := strings.Split(string(output), "\n")
 	networks := make(map[string]string)
 	for _, line := range lines {
 		if line != "" {
-			// Fetch the network details using Docker
 			networkName := line
 			netID, err := getNetworkID(networkName)
-			if err == nil {
+			if err != nil {
+				log.Warn().Str("network_name", networkName).Msg("Network ID not found")
+			} else {
 				networks[networkName] = netID
 			}
 		}
 	}
 
+	log.Info().Int("network_count", len(networks)).Msg("Docker Compose networks listed successfully")
 	return networks, nil
 }
 
 // getNetworkID fetches the network ID based on the network name.
 func getNetworkID(networkName string) (string, error) {
+	log.Debug().Str("network_name", networkName).Msg("Fetching network ID")
+
 	cmd := exec.Command("docker", "network", "ls", "--filter", fmt.Sprintf("name=%s", networkName), "--format", "{{.ID}}")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("failed to get network ID: %v - %s", err, string(output))
+		log.Error().Err(err).Str("network_name", networkName).Str("output", string(output)).Msg("Failed to get network ID")
+		return "", fmt.Errorf("failed to get network ID: %w", err)
 	}
 
 	networkID := strings.TrimSpace(string(output))
 	if networkID == "" {
+		log.Warn().Str("network_name", networkName).Msg("No network found with the specified name")
 		return "", fmt.Errorf("no network found with the name %s", networkName)
 	}
 
+	log.Debug().Str("network_name", networkName).Str("network_id", networkID).Msg("Network ID fetched successfully")
 	return networkID, nil
 }

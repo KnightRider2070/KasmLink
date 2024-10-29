@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/rs/zerolog/log"
 )
 
 func (api *KasmAPI) RequestKasmSession(req RequestKasmRequest) (*RequestKasmResponse, error) {
