@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -85,37 +86,53 @@ func UpdateAllImages() error {
 	return nil
 }
 
-// ExportImageToTar exports a Docker image to a tar file for later import
-func ExportImageToTar(imageName, outputFile string) error {
+// ExportImageToTar exports a Docker image to a tar file.
+// If outputFile is an empty string, it creates the tar file in a temporary directory.
+func ExportImageToTar(imageName, outputFile string) (string, error) {
 	log.Info().Str("image_name", imageName).Str("output_file", outputFile).Msg("Exporting Docker image to tar file")
+
+	// Initialize Docker client
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		log.Error().Err(err).Msg("Could not create Docker client")
-		return fmt.Errorf("could not create Docker client: %w", err)
+		return "", fmt.Errorf("could not create Docker client: %w", err)
 	}
 
+	// Save the Docker image to a tar stream
 	imageReader, err := cli.ImageSave(context.Background(), []string{imageName})
 	if err != nil {
 		log.Error().Err(err).Str("image_name", imageName).Msg("Failed to save Docker image")
-		return fmt.Errorf("could not save Docker image: %w", err)
+		return "", fmt.Errorf("could not save Docker image: %w", err)
 	}
 	defer imageReader.Close()
 
+	// Determine the output file path
+	if outputFile == "" {
+		outputFile = filepath.Join(os.TempDir(), fmt.Sprintf("%s-image.tar", imageName))
+	}
+
+	// Create the output tar file
 	outFile, err := os.Create(outputFile)
 	if err != nil {
 		log.Error().Err(err).Str("output_file", outputFile).Msg("Failed to create tar file")
-		return fmt.Errorf("could not create tar file: %w", err)
+		return "", fmt.Errorf("could not create tar file: %w", err)
 	}
 	defer outFile.Close()
 
+	// Write the image data to the tar file
 	written, err := io.Copy(outFile, imageReader)
 	if err != nil {
 		log.Error().Err(err).Str("output_file", outputFile).Msg("Failed to write Docker image to tar file")
-		return fmt.Errorf("could not write image to tar file: %w", err)
+		return "", fmt.Errorf("could not write image to tar file: %w", err)
 	}
 
-	log.Info().Str("image_name", imageName).Str("output_file", outputFile).Int64("bytes_written", written).Msg("Docker image exported to tar file successfully")
-	return nil
+	log.Info().
+		Str("image_name", imageName).
+		Str("output_file", outputFile).
+		Int64("bytes_written", written).
+		Msg("Docker image exported to tar file successfully")
+
+	return outputFile, nil
 }
 
 // ImportImageFromTar imports a Docker image from a tar file

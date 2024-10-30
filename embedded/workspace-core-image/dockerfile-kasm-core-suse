@@ -96,8 +96,17 @@ RUN bash $INST_SCRIPTS/printer/install_printer.sh && rm -rf $INST_SCRIPTS/printe
 COPY ./src/ubuntu/install/printer/resources/*.ppd /etc/cups/ppd/
 
 ### Install Recorder Service
+# Attempt to refresh repositories with retries and skip errors if necessary
+RUN zypper -n ref || (echo "Repository refresh failed, continuing without Packman if non-essential" && \
+    zypper -n addrepo -f --no-gpgcheck https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Leap_15.5/ packman || true) && \
+    zypper --gpg-auto-import-keys refresh --force || true
+
+# Install Recorder Service with retry logic
 COPY src/ubuntu/install/recorder $INST_SCRIPTS/recorder/
-RUN bash $INST_SCRIPTS/recorder/install_recorder.sh && rm -rf $INST_SCRIPTS/recorder
+RUN bash $INST_SCRIPTS/recorder/install_recorder.sh || \
+    (echo "Retrying installation after repository refresh" && zypper --non-interactive ref && bash $INST_SCRIPTS/recorder/install_recorder.sh) && \
+    rm -rf $INST_SCRIPTS/recorder
+
 
 ### Copy built Squid
 COPY --from=squid_builder /usr/local/squid /usr/local/squid

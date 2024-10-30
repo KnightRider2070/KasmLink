@@ -1,9 +1,10 @@
 package cmd
 
 import (
+	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"kasmlink/pkg/procedures"
+	"kasmlink/pkg/dockerutils"
 )
 
 // buildCmd represents the build command
@@ -17,7 +18,20 @@ var buildCmd = &cobra.Command{
 		dockerfilePath := args[1]
 		imageTag := args[2]
 
-		err := procedures.BuildContainer(buildContextDir, dockerfilePath, imageTag)
+		// Create a Docker client
+		cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		if err != nil {
+			log.Fatal().Err(err).Msg("Could not create Docker client")
+		}
+
+		// Create tar archive from the build context directory
+		buildContextTar, err := dockerutils.CreateTarWithContext(buildContextDir)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to create build context tar")
+		}
+
+		// Call BuildDockerImage with the tar build context
+		err = dockerutils.BuildDockerImage(cli, imageTag, dockerfilePath, buildContextTar, nil)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Build process failed")
 		} else {
@@ -27,6 +41,6 @@ var buildCmd = &cobra.Command{
 }
 
 func init() {
-	// Adding build command to root
+	// Adding build command to the root command
 	RootCmd.AddCommand(buildCmd)
 }

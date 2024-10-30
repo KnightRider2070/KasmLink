@@ -3,4 +3,7 @@ package embedfiles
 import "embed"
 
 //go:embed workspace-core-image/*
-var DockerFilesKasm embed.FS
+var EmbeddedKasmDirectory embed.FS
+
+//go:embed dockerImages/*
+var EmbeddedDockerImagesDirectory embed.FS
