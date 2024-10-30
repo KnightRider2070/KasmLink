@@ -12,10 +12,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4.2.2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3.7.1
 
       - name: Build Docker image
         id: build-image
@@ -27,7 +27,7 @@ jobs:
           docker save kasmlink-pr:${{ github.sha }} -o kasmlink-pr:${{ github.sha }}.tar
 
       - name: Upload Docker image artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4.4.3
         with:
           name: docker-image
           path: kasmlink-pr:${{ github.sha }}.tar
