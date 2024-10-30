@@ -7,9 +7,6 @@ on:
       - main
     paths:
       - "embedded/workspace-core-image/*"
-  pull_request:
-    branches:
-      - main   
   workflow_dispatch:
    
 
@@ -52,8 +49,8 @@ jobs:
         id: push
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
         with:
-          context: "{{defaultContext}}:embedded/workspace-core-image"
-          file: "{{context}}/dockerfile-kasm-core-suse"
+          context: "${{ defaultContext }}:embedded/workspace-core-image"
+          file: "${{ context }}/dockerfile-kasm-core-suse"
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
