@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"kasmlink/pkg/procedures"
@@ -25,6 +26,10 @@ var buildNFSCommand = &cobra.Command{
 			log.Fatal().Err(err).Msg("Failed to build NFS Docker image")
 		} else {
 			log.Info().Msg("NFS Docker image built successfully")
+
+			// Inform the user about running the container with --privileged
+			fmt.Println("\nTo run the NFS server container, use the following command with --privileged:")
+			fmt.Printf("docker run -it --rm --privileged %s\n", imageTag)
 		}
 	},
 }

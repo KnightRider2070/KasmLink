@@ -1,36 +1,47 @@
 # Use an official openSUSE image as the base
-FROM opensuse/leap:15.5 as builder
+FROM opensuse/leap:15.5
 
 # Define build arguments with default values
 ARG DOMAIN=srv.world
 ARG EXPORT_DIR=/home
 ARG EXPORT_NETWORK=10.0.0.0/24
-ARG NFS_VERSION=4
+ARG NFS_VERSION=4  # Specify NFS version if needed
 
-# Install necessary packages for NFS and configure NFS server settings
-RUN zypper -n install --no-recommends nfs-kernel-server && \
+# Install necessary packages for NFS, rpcbind, and clean up cache
+RUN zypper -n refresh && \
+    zypper -n install --no-recommends nfs-kernel-server rpcbind && \
     # Configure domain for NFS in idmapd.conf
     sed -i "s/# Domain = local.domain.edu/Domain = ${DOMAIN}/" /etc/idmapd.conf && \
-    # Configure exports file
-    echo "${EXPORT_DIR} ${EXPORT_NETWORK}(rw,no_root_squash,sync)" > /etc/exports && \
-    # Clean package cache to reduce image size
+    # Configure exports file with NFS version
+    echo "${EXPORT_DIR} ${EXPORT_NETWORK}(rw,no_root_squash,sync,fsid=0,insecure)" > /etc/exports && \
+    # Create necessary directories for dbus and rpcbind
+    mkdir -p /run/dbus /var/lib/nfs/rpc_pipefs && \
+    # Clean up cached files to reduce image size
     zypper clean && \
     rm -rf /var/cache/zypp/*
 
-# Use only the necessary files from builder
-FROM opensuse/leap:15.5
-
-COPY --from=builder /etc/idmapd.conf /etc/idmapd.conf
-COPY --from=builder /etc/exports /etc/exports
-
-# Expose common NFS ports
+# Expose NFS-related ports
 EXPOSE 111/tcp 2049/tcp 20048/tcp 111/udp 2049/udp 20048/udp
 
 # Set environment variables for NFS configuration
 ENV DOMAIN=${DOMAIN} \
     EXPORT_DIR=${EXPORT_DIR} \
     EXPORT_NETWORK=${EXPORT_NETWORK} \
-    NFS_VERSION=${NFS_VERSION}
+    NFS_VERSION=${NFS_VERSION} \
+    container=docker
 
-# Enable and start the NFS server using systemctl
-CMD ["/bin/bash", "-c", "systemctl start nfs-server && tail -f /dev/null"]
+# Start dbus, rpcbind, and nfs-server without systemctl
+CMD ["/bin/bash", "-c", "\
+    echo 'Starting dbus daemon...' && \
+    dbus-daemon --system --fork && \
+    echo 'Starting rpcbind service...' && \
+    rpcbind && \
+    echo 'Starting NFS server...' && \
+    rpc.nfsd && \
+    rpc.mountd && \
+    echo 'NFS server started. Tailing logs...' && \
+    tail -f /dev/null"]
+
+# Health check to ensure NFS is running
+HEALTHCHECK --interval=30s --timeout=10s \
+    CMD showmount -e localhost || exit 1
