@@ -1,0 +1,25 @@
+# Set default PostgreSQL version, allowing override at build time
+ARG POSTGRES_VERSION=13
+
+# Base the image on the official PostgreSQL image
+FROM postgres:${POSTGRES_VERSION}
+
+# Define build arguments for PostgreSQL configuration
+ARG POSTGRES_USER
+ARG POSTGRES_PASSWORD
+ARG POSTGRES_DB
+
+# Set environment variables based on build arguments
+ENV POSTGRES_USER=$POSTGRES_USER \
+    POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
+    POSTGRES_DB=$POSTGRES_DB
+
+# Expose PostgreSQL default port
+EXPOSE 5432
+
+# Healthcheck to confirm PostgreSQL is running
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD pg_isready -U "$POSTGRES_USER" || exit 1
+
+# Add custom configurations here, if necessary
+# COPY custom-config.conf /etc/postgresql/postgresql.conf

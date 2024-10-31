@@ -1,0 +1,33 @@
+name: Build KASM Core Image
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.7.1
+
+      - name: Build Docker image
+        id: build-image
+        run: |
+          docker build -f ./embedded/workspace-core-image/dockerfile-kasm-core-suse -t kasmlink-pr:${{ github.sha }} ./embedded/workspace-core-image
+
+      - name: Save Docker image as a tarball
+        run: |
+          docker save kasmlink-pr:${{ github.sha }} -o kasmlink-pr-${{ github.sha }}.tar
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4.4.3
+        with:
+          name: docker-image
+          path: kasmlink-pr-${{ github.sha }}.tar

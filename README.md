@@ -1,7 +1,7 @@
 # KasmLink
 
 <div align="center">
-  <img src="logo.webp" alt="KasmLink Logo" />
+  <img src="logo.webp" alt="KasmLink Logo"  width="200" />
 </div>
 KasmLink is a powerful command-line interface (CLI) tool that enables developers to seamlessly deploy GPU-accelerated containers and isolated environments for clients using Docker and Kasm technologies.
 
@@ -50,75 +50,6 @@ kasmlink --help
 
 This command will provide you with a list of all available subcommands and their usage.
 
-## Usage
-
-KasmLink offers a range of commands to interact with your Kasm server. Below are some examples:
-
-### User Management
-
-#### Create a User
-
-```sh
-kasmlink create-user -u new_user -p your_password -f "John" -l "Doe"
-```
-
-#### Get User Details
-
-```sh
-kasmlink get-user -u user_id
-```
-
-#### Delete a User
-
-```sh
-kasmlink delete-user -u user_id
-```
-
-### Session Management
-
-#### Request a Session
-
-```sh
-kasmlink request-session -u user_id -i image_id
-```
-
-#### Destroy a Session
-
-```sh
-kasmlink destroy-session -u user_id -k kasm_id
-```
-
-#### SSH Connect to a Session
-
-```sh
-kasmlink ssh-connect -u user_id -k kasm_id -s kasm-user -i /path/to/private_key
-```
-
-### Image Management
-
-#### List Available Images
-
-```sh
-kasmlink list-images
-```
-
-### Execute a Command in a Session
-
-```sh
-kasmlink exec-command -u user_id -k kasm_id -c "echo Hello, World!"
-```
-
-## Command Reference
-
-- `create-user`: Create a new user in the Kasm environment.
-- `get-user`: Retrieve details of a specific user.
-- `delete-user`: Delete an existing user.
-- `request-session`: Request a new Kasm session.
-- `destroy-session`: Destroy an active Kasm session.
-- `list-images`: List all available Docker images in the Kasm environment.
-- `exec-command`: Execute a command inside a Kasm session.
-- `ssh-connect`: Initiate an SSH connection to an active Kasm session.
-
 ## Configuration
 
 KasmLink interacts with your Kasm server using an API key and secret. You can either:
@@ -133,12 +64,6 @@ KasmLink interacts with your Kasm server using an API key and secret. You can ei
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request if you have ideas or improvements.
-
-1. Fork the repository.
-2. Create a new feature branch (`git checkout -b feature-branch`).
-3. Commit your changes (`git commit -am 'Add new feature'`).
-4. Push to the branch (`git push origin feature-branch`).
-5. Open a pull request.
 
 ## Testing
 
@@ -173,7 +98,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Author
 
-Developed by [Your Name]. Feel free to reach out if you have questions or feedback!
+Developed by KnightRider2070. Feel free to reach out if you have questions or feedback!
 
 ## Support
 
