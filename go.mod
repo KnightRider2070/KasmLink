@@ -10,6 +10,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	golang.org/x/net v0.30.0
 	golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (

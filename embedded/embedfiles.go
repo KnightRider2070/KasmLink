@@ -7,3 +7,6 @@ var EmbeddedKasmDirectory embed.FS
 
 //go:embed dockerImages/*
 var EmbeddedDockerImagesDirectory embed.FS
+
+//go:embed templates/*
+var EmbeddedTemplateFS embed.FS
