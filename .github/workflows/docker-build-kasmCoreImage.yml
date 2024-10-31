@@ -3,7 +3,7 @@ name: Build KASM Core Image
 on:
   pull_request:
     branches:
-      - main   
+      - main
   workflow_dispatch:
 
 jobs:

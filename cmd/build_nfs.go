@@ -27,9 +27,9 @@ var buildNFSCommand = &cobra.Command{
 		} else {
 			log.Info().Msg("NFS Docker image built successfully")
 
-			// Inform the user about running the container with --privileged
-			fmt.Println("\nTo run the NFS server container, use the following command with --privileged:")
-			fmt.Printf("docker run -it --rm --privileged %s\n", imageTag)
+			// Inform the user about running the container with --privileged and publishing necessary ports
+			fmt.Println("\nTo run the NFS server container, use the following command with --privileged and published ports:")
+			fmt.Printf("docker run -it --rm --privileged -p 111:111/tcp -p 2049:2049/tcp -p 20048:20048/tcp -p 111:111/udp -p 2049:2049/udp -p 20048:20048/udp %s\n", imageTag)
 		}
 	},
 }

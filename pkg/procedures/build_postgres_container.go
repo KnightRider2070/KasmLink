@@ -24,6 +24,14 @@ func BuildPostgresContainer(imageTag, postgresVersion, postgresUser, postgresPas
 		return fmt.Errorf("failed to create build context tar: %v", err)
 	}
 
+	// Log build arguments
+	log.Info().
+		Str("POSTGRES_VERSION", postgresVersion).
+		Str("POSTGRES_USER", postgresUser).
+		Str("POSTGRES_PASSWORD", "********").
+		Str("POSTGRES_DB", postgresDB).
+		Msg("Docker build arguments")
+
 	// Define Docker build arguments
 	buildArgs := map[string]*string{
 		"POSTGRES_VERSION":  &postgresVersion,
@@ -32,6 +40,5 @@ func BuildPostgresContainer(imageTag, postgresVersion, postgresUser, postgresPas
 		"POSTGRES_DB":       &postgresDB,
 	}
 
-	// Build the Docker image
 	return dockerutils.BuildDockerImage(cli, imageTag, "dockerfile-postgres", buildContextTar, buildArgs)
 }
