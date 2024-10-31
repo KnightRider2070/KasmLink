@@ -2,9 +2,8 @@ package tests
 
 import (
 	"encoding/json"
+	"kasmlink/pkg/api"
 	"testing"
-
-	"kasmlink/api"
 
 	"github.com/stretchr/testify/assert"
 )
