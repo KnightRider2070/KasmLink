@@ -5,7 +5,7 @@ import "embed"
 //go:embed workspace-core-image/*
 var EmbeddedKasmDirectory embed.FS
 
-//go:embed dockerImages/*
+//go:embed dockerfiles/*
 var EmbeddedDockerImagesDirectory embed.FS
 
 //go:embed templates/*

@@ -18,10 +18,7 @@ services:
         - {{ $key }}={{ $value }}
         {{- end }}
       healthcheck:
-        test:
-          {{- if gt (len .HealthCheck.Test) 0 }}"{{ index .HealthCheck.Test 0 }}"{{- end }}
-          {{- if gt (len .HealthCheck.Test) 1 }}, "{{ index .HealthCheck.Test 1 }}"{{- end }}
-          {{- if gt (len .HealthCheck.Test) 2 }}, "{{ index .HealthCheck.Test 2 }}"{{- end }}
+        test: [{{- range $index, $cmd := .HealthCheck.Test }}{{ if gt $index 0 }}, {{ end }}"{{ $cmd }}"{{- end }}]
         interval: {{ .HealthCheck.Interval }}
         timeout: {{ .HealthCheck.Timeout }}
         retries: {{ .HealthCheck.Retries }}
