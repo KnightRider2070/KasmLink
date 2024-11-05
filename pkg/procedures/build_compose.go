@@ -1,252 +1,210 @@
 package procedures
 
 import (
-	_ "embed" // Required for embedding files
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"io/fs"
-	"io/ioutil"
 	embedfiles "kasmlink/embedded"
 	"kasmlink/pkg/dockercompose"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/rs/zerolog/log"
 )
 
-// InitTemplatesFolder initializes the templates folder by copying embedded default templates into a "services" subfolder.
+// InitFolder initializes a specified folder by copying embedded templates or Dockerfiles.
+func InitFolder(folderPath, subfolder, sourcePath string, embeddedFS fs.FS) error {
+	targetFolder := filepath.Join(folderPath, subfolder)
+	log.Info().Str("folderPath", folderPath).Str("subfolder", subfolder).Msg("Initializing folder path")
+
+	// Create the target folder if it doesn’t exist
+	if err := os.MkdirAll(targetFolder, os.ModePerm); err != nil {
+		log.Error().Err(err).Str("path", targetFolder).Msg("Failed to create target folder")
+		return fmt.Errorf("failed to create folder %s: %w", targetFolder, err)
+	}
+
+	// Copy files from embedded FS to target folder
+	if err := copyEmbeddedFiles(embeddedFS, sourcePath, targetFolder); err != nil {
+		log.Error().Err(err).Str("subfolder", subfolder).Msg("Error during folder initialization")
+		return fmt.Errorf("error initializing folder %s: %w", subfolder, err)
+	}
+
+	log.Info().Str("folderPath", targetFolder).Msg("Folder initialization completed successfully")
+	return nil
+}
+
+// copyEmbeddedFiles copies files from an embedded file system to a target directory.
+func copyEmbeddedFiles(embeddedFS fs.FS, sourcePath, targetFolder string) error {
+	return fs.WalkDir(embeddedFS, sourcePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			log.Error().Err(err).Str("path", path).Msg("Error walking through embedded directory")
+			return err
+		}
+		if d.IsDir() {
+			return nil // Skip directories
+		}
+
+		// Prepare target file path and create necessary directories
+		relativePath := strings.TrimPrefix(path, sourcePath+"/")
+		targetPath := filepath.Join(targetFolder, relativePath)
+		if err := os.MkdirAll(filepath.Dir(targetPath), os.ModePerm); err != nil {
+			log.Error().Err(err).Str("path", targetPath).Msg("Failed to create directory for file")
+			return fmt.Errorf("failed to create directory %s: %w", filepath.Dir(targetPath), err)
+		}
+
+		// Copy file content from embedded FS to target path
+		content, err := fs.ReadFile(embeddedFS, path)
+		if err != nil {
+			log.Error().Err(err).Str("path", path).Msg("Failed to read embedded file")
+			return fmt.Errorf("failed to read embedded file %s: %w", path, err)
+		}
+		if err := os.WriteFile(targetPath, content, 0644); err != nil {
+			log.Error().Err(err).Str("path", targetPath).Msg("Failed to write file to target path")
+			return fmt.Errorf("failed to write file to %s: %w", targetPath, err)
+		}
+		log.Info().Str("file", targetPath).Msg("File initialized successfully")
+		return nil
+	})
+}
+
+// InitTemplatesFolder initializes the templates folder with embedded templates.
 func InitTemplatesFolder(folderPath string) error {
-	servicesFolderPath := filepath.Join(folderPath, "services")
-	log.Info().Str("folderPath", folderPath).Msg("Initialized folder path")
-	log.Info().Str("servicesFolderPath", servicesFolderPath).Msg("Service folder path for templates")
-
-	// Attempt to create the services folder
-	if _, err := os.Stat(servicesFolderPath); os.IsNotExist(err) {
-		log.Debug().Str("path", servicesFolderPath).Msg("Creating services folder")
-		err = os.MkdirAll(servicesFolderPath, os.ModePerm)
-		if err != nil {
-			log.Error().Err(err).Str("path", servicesFolderPath).Msg("Failed to create services folder")
-			return fmt.Errorf("failed to create services folder: %v", err)
-		}
-	}
-
-	err := fs.WalkDir(embedfiles.EmbeddedTemplateFS, "templates", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			log.Error().Err(err).Str("path", path).Msg("Error walking through embedded templates directory")
-			return err
-		}
-		if d.IsDir() {
-			log.Debug().Str("directory", path).Msg("Skipping directory")
-			return nil
-		}
-
-		// Compute the relative path and the target path
-		relativePath := strings.TrimPrefix(path, "templates/")
-		targetPath := filepath.Join(servicesFolderPath, relativePath)
-		targetDir := filepath.Dir(targetPath)
-
-		// Log detailed debug information about path processing
-		log.Debug().
-			Str("source", path).
-			Str("relativePath", relativePath).
-			Str("targetPath", targetPath).
-			Msg("Processing file for template initialization")
-
-		// Create the target directory if it doesn’t exist
-		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
-			log.Debug().Str("path", targetDir).Msg("Creating target directory for file")
-			if err = os.MkdirAll(targetDir, os.ModePerm); err != nil {
-				log.Error().Err(err).Str("path", targetDir).Msg("Failed to create target directory")
-				return fmt.Errorf("failed to create directory %s: %v", targetDir, err)
-			}
-		}
-
-		// Read and write the template file content
-		content, err := embedfiles.EmbeddedTemplateFS.ReadFile(path)
-		if err != nil {
-			log.Error().Err(err).Str("path", path).Msg("Failed to read embedded template file")
-			return fmt.Errorf("failed to read embedded template %s: %v", path, err)
-		}
-
-		err = ioutil.WriteFile(targetPath, content, 0644)
-		if err != nil {
-			log.Error().Err(err).Str("path", targetPath).Msg("Failed to write template file to target path")
-			return fmt.Errorf("failed to write template to %s: %v", targetPath, err)
-		}
-		log.Info().Str("file", targetPath).Msg("Template file initialized successfully")
-		return nil
-	})
-
-	if err != nil {
-		log.Error().Err(err).Msg("Error during template folder initialization")
-		return fmt.Errorf("error initializing templates: %v", err)
-	}
-
-	log.Info().Str("servicesFolderPath", servicesFolderPath).Msg("Template initialization completed")
-	return nil
+	return InitFolder(folderPath, "services", "templates", embedfiles.EmbeddedTemplateFS)
 }
 
-// InitDockerfilesFolder initializes the Dockerfiles folder by copying embedded Dockerfile templates.
+// InitDockerfilesFolder initializes the Dockerfiles folder with embedded Dockerfile templates.
 func InitDockerfilesFolder(folderPath string) error {
-	dockerfilesFolderPath := filepath.Join(folderPath, "dockerfiles")
-	log.Info().Str("folderPath", folderPath).Msg("Initialized dockerfiles folder path")
-	log.Info().Str("dockerfilesFolderPath", dockerfilesFolderPath).Msg("Dockerfiles folder path for templates")
-
-	// Attempt to create the dockerfiles folder
-	if _, err := os.Stat(dockerfilesFolderPath); os.IsNotExist(err) {
-		log.Debug().Str("path", dockerfilesFolderPath).Msg("Creating dockerfiles folder")
-		err = os.MkdirAll(dockerfilesFolderPath, os.ModePerm)
-		if err != nil {
-			log.Error().Err(err).Str("path", dockerfilesFolderPath).Msg("Failed to create dockerfiles folder")
-			return fmt.Errorf("failed to create dockerfiles folder: %v", err)
-		}
-	}
-
-	err := fs.WalkDir(embedfiles.EmbeddedDockerImagesDirectory, "dockerfiles", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			log.Error().Err(err).Str("path", path).Msg("Error walking through embedded dockerfiles directory")
-			return err
-		}
-		if d.IsDir() {
-			log.Debug().Str("directory", path).Msg("Skipping directory")
-			return nil
-		}
-
-		// Compute the relative path and the target path
-		relativePath := strings.TrimPrefix(path, "dockerfiles/")
-		targetPath := filepath.Join(dockerfilesFolderPath, relativePath)
-		targetDir := filepath.Dir(targetPath)
-
-		// Log detailed debug information about path processing
-		log.Debug().
-			Str("source", path).
-			Str("relativePath", relativePath).
-			Str("targetPath", targetPath).
-			Msg("Processing file for dockerfile initialization")
-
-		// Create the target directory if it doesn’t exist
-		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
-			log.Debug().Str("path", targetDir).Msg("Creating target directory for file")
-			if err = os.MkdirAll(targetDir, os.ModePerm); err != nil {
-				log.Error().Err(err).Str("path", targetDir).Msg("Failed to create target directory")
-				return fmt.Errorf("failed to create directory %s: %v", targetDir, err)
-			}
-		}
-
-		// Read and write the Dockerfile template content
-		content, err := embedfiles.EmbeddedDockerImagesDirectory.ReadFile(path)
-		if err != nil {
-			log.Error().Err(err).Str("path", path).Msg("Failed to read embedded dockerfile template")
-			return fmt.Errorf("failed to read embedded Dockerfile template %s: %v", path, err)
-		}
-
-		err = ioutil.WriteFile(targetPath, content, 0644)
-		if err != nil {
-			log.Error().Err(err).Str("path", targetPath).Msg("Failed to write dockerfile to target path")
-			return fmt.Errorf("failed to write Dockerfile to %s: %v", targetPath, err)
-		}
-		log.Info().Str("file", targetPath).Msg("Dockerfile template initialized successfully")
-		return nil
-	})
-
-	if err != nil {
-		log.Error().Err(err).Msg("Error during dockerfile folder initialization")
-		return fmt.Errorf("error initializing Dockerfiles: %v", err)
-	}
-
-	log.Info().Str("dockerfilesFolderPath", dockerfilesFolderPath).Msg("Dockerfile initialization completed")
-	return nil
+	return InitFolder(folderPath, "dockerfiles", "dockerfiles", embedfiles.EmbeddedDockerImagesDirectory)
 }
 
-// PopulateComposeWithTemplate populates a docker-compose file with a user-specified template, service name, and count.
+// PopulateComposeWithTemplate populates a Docker Compose file with instances of a specified template.
 func PopulateComposeWithTemplate(composeFile *dockercompose.ComposeFile, folderPath, templateName string, count int, serviceNames map[int]string) error {
-	// Ensure the template file has a .yaml extension
 	if !strings.HasSuffix(templateName, ".yaml") {
 		templateName += ".yaml"
 	}
-	log.Info().Str("templateName", templateName).Int("count", count).Msg("Initializing template population")
-
-	// Path to the user-modified template (e.g., "templates/example-service.yaml")
 	templatePath := filepath.Join(folderPath, templateName)
-	log.Debug().Str("templatePath", templatePath).Msg("Computed template path")
+	log.Info().Str("templateName", templateName).Int("count", count).Msg("Starting template population")
 
-	// Load the modified template content from the specified folder
-	tmplContent, err := ioutil.ReadFile(templatePath)
+	// Load and parse the template
+	tmpl, err := loadTemplate(templatePath, templateName)
 	if err != nil {
-		log.Error().Err(err).Str("templatePath", templatePath).Msg("Failed to load template content")
-		return fmt.Errorf("failed to load template %s: %v", templateName, err)
+		return err
 	}
-	log.Info().Str("templatePath", templatePath).Msg("Template loaded successfully")
 
-	// Parse the template content
-	tmpl, err := template.New(templateName).Parse(string(tmplContent))
-	if err != nil {
-		log.Error().Err(err).Str("templateName", templateName).Msg("Failed to parse template content")
-		return fmt.Errorf("failed to parse template: %v", err)
-	}
-	log.Info().Str("templateName", templateName).Msg("Template parsed successfully")
+	// Ensure networks and volumes are initialized in the Compose file
+	ensureNetworksAndVolumes(composeFile)
 
-	// Loop to create service instances from the user-modified template
+	// Loop through each instance to create services
 	for i := 1; i <= count; i++ {
-		// Determine the service name
-		var serviceName string
-		if name, ok := serviceNames[i]; ok {
-			serviceName = name
-		} else if len(serviceNames) == 1 {
-			for _, baseName := range serviceNames {
-				serviceName = fmt.Sprintf("%s-%d", baseName, i)
-			}
-		} else {
-			serviceName = fmt.Sprintf("%s-%d", strings.TrimSuffix(templateName, ".yaml"), i)
-		}
-		log.Debug().Str("serviceName", serviceName).Int("instance", i).Msg("Generated service name")
+		serviceName := generateServiceName(serviceNames, i, templateName)
+		log.Debug().Str("serviceName", serviceName).Msg("Creating service instance")
 
-		// Create a new ServiceInput based on the template
-		service := dockercompose.ServiceInput{
-			ServiceName:          serviceName,
-			BuildContext:         "./path/to/context",
-			ContainerName:        serviceName + "_container",
-			ContainerIP:          "10.5.0.5",
-			Command:              "echo Hello World",
-			EnvironmentVariables: map[string]string{"ENV_VAR": "value"},
-			HealthCheck: dockercompose.HealthCheck{
-				Test:     []string{"CMD-SHELL", "echo 'healthy'"},
-				Interval: "30s",
-				Timeout:  "10s",
-				Retries:  3,
-			},
-			Resources: dockercompose.ResourceLimits{
-				MemoryLimit:       "512m",
-				CPULimit:          "0.5",
-				MemoryReservation: "256m",
-			},
-			Logging: dockercompose.LoggingConfig{
-				Driver:  "json-file",
-				MaxSize: "10m",
-				MaxFile: "3",
-			},
-			Deploy: dockercompose.RestartPolicy{
-				RestartCondition: "on-failure",
-				MaxAttempts:      3,
-			},
-			Volumes: []string{"/data"},
+		// Define and render the service structure
+		service := createServiceConfig(serviceName)
+		if err := renderServiceToCompose(tmpl, service, serviceName, composeFile); err != nil {
+			return err
 		}
-		log.Info().Str("serviceName", serviceName).Msg("Service input structure created")
-
-		// Render the modified template into the service configuration
-		var renderedService strings.Builder
-		err = tmpl.Execute(&renderedService, service)
-		if err != nil {
-			log.Error().Err(err).Str("serviceName", serviceName).Msg("Failed to apply template to service configuration")
-			return fmt.Errorf("failed to apply template for service %s: %v", serviceName, err)
-		}
-		log.Info().Str("serviceName", serviceName).Msg("Template successfully rendered for service")
-
-		// Append the rendered service to the ComposeFile's Services
-		composeFile.Services = append(composeFile.Services, service)
-		log.Debug().Str("serviceName", serviceName).Msg("Service appended to ComposeFile")
 	}
 
 	log.Info().Str("templateName", templateName).Int("count", count).Msg("Template population completed successfully")
+	return nil
+}
+
+// ensureNetworksAndVolumes adds default networks and volumes if missing.
+func ensureNetworksAndVolumes(composeFile *dockercompose.ComposeFile) {
+	if composeFile.Networks == nil {
+		composeFile.Networks = make(map[string]dockercompose.Network)
+	}
+	if composeFile.Volumes == nil {
+		composeFile.Volumes = make(map[string]dockercompose.Volume)
+	}
+
+	// Add example network
+	composeFile.Networks["example_network"] = dockercompose.Network{
+		Driver: "bridge",
+		DriverOpts: map[string]string{
+			"subnet": "10.5.0.0/16",
+		},
+	}
+
+	// Add example volume
+	composeFile.Volumes["nfs_data"] = dockercompose.Volume{
+		Driver: "local",
+		DriverOpts: map[string]string{
+			"type":   "none",
+			"device": "/path/to/host/directory",
+			"o":      "bind",
+		},
+	}
+}
+
+// loadTemplate loads and parses the specified template file.
+func loadTemplate(templatePath, templateName string) (*template.Template, error) {
+	tmplContent, err := os.ReadFile(templatePath)
+	if err != nil {
+		log.Error().Err(err).Str("templatePath", templatePath).Msg("Failed to load template content")
+		return nil, fmt.Errorf("failed to load template %s: %w", templateName, err)
+	}
+	tmpl, err := template.New(templateName).Parse(string(tmplContent))
+	if err != nil {
+		log.Error().Err(err).Str("templateName", templateName).Msg("Failed to parse template")
+		return nil, fmt.Errorf("failed to parse template %s: %w", templateName, err)
+	}
+	return tmpl, nil
+}
+
+// generateServiceName generates a service name based on the provided name or template name.
+func generateServiceName(serviceNames map[int]string, index int, templateName string) string {
+	if name, exists := serviceNames[index]; exists && name != "" {
+		return name
+	}
+	return fmt.Sprintf("%s-%d", strings.TrimSuffix(templateName, ".yaml"), index)
+}
+
+// createServiceConfig defines a new service configuration.
+func createServiceConfig(serviceName string) dockercompose.Service {
+	return dockercompose.Service{
+		ContainerName: fmt.Sprintf("%s_container", serviceName),
+		Build: &dockercompose.BuildConfig{
+			Context:    "./path/to/context",
+			Dockerfile: "Dockerfile",
+			Args: map[string]string{
+				"ARG1": "value1",
+				"ARG2": "value2",
+			},
+		},
+		Healthcheck: &dockercompose.Healthcheck{
+			Test:     []string{"CMD-SHELL", "echo 'healthy'"},
+			Interval: "30s",
+			Timeout:  "10s",
+			Retries:  3,
+		},
+		Logging: &dockercompose.Logging{
+			Driver: "json-file",
+			Options: map[string]string{
+				"max-size": "10m",
+				"max-file": "3",
+			},
+		},
+		RestartPolicy: "on-failure",
+		Volumes:       []string{"nfs_data:/data"},
+		NetworkConfig: dockercompose.NetworkConfig{
+			Networks: []string{"example_network"},
+		},
+		Tty:     false,
+		Command: []string{"echo", "Hello World"},
+	}
+}
+
+// renderServiceToCompose renders the service template and adds it to the Compose file.
+func renderServiceToCompose(tmpl *template.Template, service dockercompose.Service, serviceName string, composeFile *dockercompose.ComposeFile) error {
+	var renderedService strings.Builder
+	if err := tmpl.Execute(&renderedService, service); err != nil {
+		log.Error().Err(err).Str("serviceName", serviceName).Msg("Failed to apply template")
+		return fmt.Errorf("failed to apply template for service %s: %w", serviceName, err)
+	}
+	composeFile.Services[serviceName] = service
+	log.Info().Str("serviceName", serviceName).Msg("Service added to ComposeFile")
 	return nil
 }
