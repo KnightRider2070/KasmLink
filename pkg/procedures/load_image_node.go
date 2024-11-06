@@ -51,10 +51,30 @@ func ImportDockerImageToRemoteNode(username, password, host, localTarFilePath, r
 		return fmt.Errorf("failed to execute Docker load command on remote node: %v", err)
 	}
 
+	// Step 3: Remove the imported tar file
+	deleteCommand := fmt.Sprintf("rm -rf %s",remoteTarFilePath)
+
+	log.Info().
+		Str("host", host).
+		Str("command", deleteCommand).
+		Msg("Executing remove command on remote node")
+
+	err = shadowssh.ShadowExecuteCommand(username, password, host, deleteCommand)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("host", host).
+			Str("command", deleteCommand).
+			Msg("Failed to remove tar from remote node")
+		return fmt.Errorf("failed to remove tar file from remote node: %v", err)
+	}
+	
+
 	log.Info().
 		Str("local_tar_file", localTarFilePath).
 		Str("host", host).
 		Msg("Docker image imported successfully on remote node")
 	fmt.Printf("Docker image imported successfully from %s on %s\n", localTarFilePath, host)
+	
 	return nil
 }
