@@ -60,7 +60,7 @@ func DeployKasmDockerImage(imageTag, baseImage, dockerfilePath, targetNodeAddres
 	return nil
 }
 
-func DeployBackendComposeFile(composeFilePath, targetNodeAddress, targetNodePath, sshUser, sshPassword, dockerNetworkName string) error {
+func DeployBackendComposeFile(composeFilePath, targetNodeAddress, targetNodePath, sshUser, sshPassword string) error {
 	// Step 1: Copy compose file onto node
 	err := shadowscp.ShadowCopyFile(sshUser, sshPassword, targetNodeAddress, composeFilePath, targetNodePath)
 	if err != nil {
