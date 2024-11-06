@@ -19,7 +19,7 @@ func BuildNFSContainer(imageTag, domain, exportDir, exportNetwork, nfsVersion st
 	}
 
 	// Create tar archive from the embedded Dockerfile and build context
-	buildContextTar, err := dockerutils.CreateTarFromEmbedded(embedfiles.EmbeddedDockerImagesDirectory, "dockerImages")
+	buildContextTar, err := dockerutils.CreateTarFromEmbedded(embedfiles.EmbeddedDockerImagesDirectory, "dockerfiles")
 	if err != nil {
 		return fmt.Errorf("failed to create build context tar: %v", err)
 	}

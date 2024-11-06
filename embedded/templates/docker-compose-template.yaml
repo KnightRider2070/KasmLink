@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  {{- range .Services }}
+    {{ .ServiceName }}:
+      build: {{ .BuildContext }}
+      container_name: {{ .ContainerName }}
+      networks:
+        {{- if $.NetworkName }}
+          {{ $.NetworkName }}:
+          ipv4_address: {{ .ContainerIP }}
+          {{- else }}
+          default_network:
+            ipv4_address: {{ .ContainerIP }}
+          {{- end }}
+      environment:
+        {{- range $key, $value := .EnvironmentVariables }}
+        - {{ $key }}={{ $value }}
+        {{- end }}
+      healthcheck:
+        test: [{{- range $index, $cmd := .HealthCheck.Test }}{{ if gt $index 0 }}, {{ end }}"{{ $cmd }}"{{- end }}]
+        interval: {{ .HealthCheck.Interval }}
+        timeout: {{ .HealthCheck.Timeout }}
+        retries: {{ .HealthCheck.Retries }}
+      logging:
+        driver: {{ .Logging.Driver }}
+        options:
+          max-size: {{ .Logging.MaxSize }}
+          max-file: {{ .Logging.MaxFile }}
+      deploy:
+        resources:
+          limits:
+            memory: {{ .Resources.MemoryLimit }}
+            cpus: {{ .Resources.CPULimit }}
+          reservations:
+            memory: {{ .Resources.MemoryReservation }}
+        restart_policy:
+          condition: {{ .Deploy.RestartCondition }}
+          max_attempts: {{ .Deploy.MaxAttempts }}
+      command: {{ .Command }}
+      volumes:
+        {{- range .Volumes }}
+        - {{ . }}
+        {{- end }}
+      tty: {{ .TTY }}
+      {{- end }}
+
+networks:
+  {{- if .NetworkName }}
+    {{ .NetworkName }}:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: {{ .NetworkSubnet }}
+    {{- else }}
+    default_network:
+      driver: bridge
+      ipam:
+        config:
+          - subnet: 10.5.0.0/24  # Example default subnet
+    {{- end }}
