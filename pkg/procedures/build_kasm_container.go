@@ -59,3 +59,28 @@ func DeployKasmDockerImage(imageTag, baseImage, dockerfilePath, targetNodeAddres
 	log.Info().Msg("Docker image deployed and loaded successfully on target node")
 	return nil
 }
+
+func DeployBackendComposeFile(composeFilePath, targetNodeAddress, targetNodePath, sshUser, sshPassword, dockerNetworkName string) error {
+	// Step 1: Copy compose file onto node
+	err := shadowscp.ShadowCopyFile(sshUser, sshPassword, targetNodeAddress, composeFilePath, targetNodePath)
+	if err != nil {
+		return fmt.Errorf("failed to copy compose file onto remote node: %v", err)
+	}
+
+	// Step 2: Start compose backend
+	//TODO: Assign targetNodeComposeFilePath correct value and also log compose output for the user for 20 seconds
+	targetNodeComposeFilePath := Filepath.join(targetNodePath)
+	dockerComposeUpCommand := fmt.Sprintf("docker compose up %s", )
+	err = shadowssh.ShadowExecuteCommand(username, password, host, checkCommand)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("host", host).
+			Str("command", dockerComposeUpCommand).
+			Msg("Failed to start backend on remote node using compose")
+		return fmt.Errorf("failed to start backend on remote node using compose: %v", err)
+	}
+
+	log.Info().Msg("Backend compose deployed successfully on target node")
+	return nil
+}
