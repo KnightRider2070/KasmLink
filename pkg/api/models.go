@@ -123,6 +123,7 @@ type KasmInfo struct {
 	Memory            int64           `json:"memory"`
 	ShareID           string          `json:"share_id"`
 	ClientSettings    ClientSettings  `json:"client_settings"`
+	ContainerID       string          `json:"container_id"`
 }
 
 // Port represents port mappings in a Kasm session.

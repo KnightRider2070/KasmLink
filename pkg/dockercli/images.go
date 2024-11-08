@@ -61,6 +61,39 @@ func ListImages(ctx context.Context, retries int) ([]string, error) {
 	return images, nil
 }
 
+// GetImageIDByTag retrieves the Image ID for a given image tag.
+func GetImageIDByTag(ctx context.Context, retries int, imageTag string) (string, error) {
+	// Step 1: List all Docker images
+	images, err := ListImages(ctx, retries)
+	if err != nil {
+		return "", fmt.Errorf("failed to list Docker images: %v", err)
+	}
+
+	// Step 2: Find the image that matches the provided tag
+	var imageID string
+	for _, image := range images {
+		// Compare the image tag with the input tag
+		if image == imageTag {
+			// Step 3: Use docker inspect to retrieve the Image ID
+			output, err := executeDockerCommand(ctx, retries, "docker", "inspect", "--format", "{{.Id}}", image)
+			if err != nil {
+				log.Error().Err(err).Str("image", image).Msg("Failed to inspect Docker image")
+				return "", fmt.Errorf("failed to inspect Docker image %s: %v", image, err)
+			}
+			imageID = string(output)
+			break
+		}
+	}
+
+	if imageID == "" {
+		log.Warn().Str("imageTag", imageTag).Msg("No matching image found for tag")
+		return "", fmt.Errorf("no matching image found for tag %s", imageTag)
+	}
+
+	log.Info().Str("imageTag", imageTag).Str("imageID", imageID).Msg("Found matching image ID")
+	return imageID, nil
+}
+
 // UpdateAllImages pulls the latest version of all present Docker images with retry mechanism.
 func UpdateAllImages(ctx context.Context, retries int) error {
 	images, err := ListImages(ctx, retries)
