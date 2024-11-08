@@ -6,11 +6,15 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+)
+
+var (
+	urlRegex        = regexp.MustCompile(`https?://[^\s]+`)
+	variablePattern = regexp.MustCompile(`(?m)^\s*%s\s*=\s*['"]?([^'"\s]+)['"]?`)
 )
 
 // createShadowHubClient creates a GitHub client with an optional token for authentication.
@@ -38,18 +42,17 @@ func fetchShadowHubFile(client *github.Client, owner, repo, path string) (string
 		log.Error().Err(err).Msg("Failed to decode file content from GitHub")
 		return "", err
 	}
-	log.Debug().Str("file_content", fileContent).Msg("Fetched file content")
+	log.Debug().Msg("Fetched file content successfully")
 	return fileContent, nil
 }
 
 // extractURLs extracts URLs from script content, excluding those with variables.
 func extractURLs(scriptContent string) []string {
-	re := regexp.MustCompile(`https?://[^\s]+`)
-	allURLs := re.FindAllString(scriptContent, -1)
+	allURLs := urlRegex.FindAllString(scriptContent, -1)
 
 	var validURLs []string
 	for _, url := range allURLs {
-		if !regexp.MustCompile(`\$\{[^}]+\}`).MatchString(url) {
+		if !strings.Contains(url, "${") {
 			validURLs = append(validURLs, url)
 		}
 	}
@@ -168,7 +171,7 @@ func UpdateShadowDependencies(workspaceImageFilePath, token string) {
 		if !info.IsDir() && strings.HasSuffix(info.Name(), ".sh") {
 			log.Info().Str("path", path).Msg("Processing script")
 
-			localScriptContent, err := ioutil.ReadFile(path)
+			localScriptContent, err := os.ReadFile(path)
 			if err != nil {
 				log.Error().Err(err).Str("path", path).Msg("Failed to read local script")
 				return nil
@@ -186,7 +189,7 @@ func UpdateShadowDependencies(workspaceImageFilePath, token string) {
 			updatedScriptContent, varsChanged := updateCustomVariables(string(localScriptContent), upstreamScriptContent, variablesToCheck)
 
 			if urlsChanged || varsChanged {
-				err = ioutil.WriteFile(path, []byte(updatedScriptContent), 0644)
+				err = os.WriteFile(path, []byte(updatedScriptContent), 0644)
 				if err != nil {
 					log.Error().Err(err).Str("path", path).Msg("Failed to write updated script")
 					return nil

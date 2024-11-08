@@ -1,11 +1,11 @@
 package dockercli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/rs/zerolog/log"
-	"os/exec"
-	"strings"
+	"time"
 )
 
 // NetworkDriver defines a custom type for network drivers with only allowed values.
@@ -43,14 +43,35 @@ type NetworkOptions struct {
 	Labels      map[string]string // Labels for the network
 	Options     map[string]string // Driver specific options
 	Scope       string            // Scope of the network (local, swarm)
+	RetryCount  int               // Retry attempts for Docker commands
+	RetryDelay  time.Duration     // Delay between retry attempts
+	Timeout     time.Duration     // Timeout for Docker commands
 }
 
-// CreateDockerNetwork creates a new Docker network with the provided options.
+// default values for retrying Docker commands
+const (
+	defaultRetryCount     = 3
+	defaultRetryDelay     = 2 * time.Second
+	defaultCommandTimeout = 30 * time.Second
+)
+
+// CreateDockerNetwork creates a new Docker network with the provided options, with retry and timeout support.
 func CreateDockerNetwork(opts NetworkOptions) error {
 	// Validate driver
 	if !opts.Driver.IsValid() {
 		log.Error().Str("driver", string(opts.Driver)).Msg("Invalid driver specified")
 		return errors.New("invalid driver: must be one of 'bridge', 'overlay', or 'none'")
+	}
+
+	// Set default retry count, delay, and timeout if not provided
+	if opts.RetryCount <= 0 {
+		opts.RetryCount = defaultRetryCount
+	}
+	if opts.RetryDelay <= 0 {
+		opts.RetryDelay = defaultRetryDelay
+	}
+	if opts.Timeout <= 0 {
+		opts.Timeout = defaultCommandTimeout
 	}
 
 	log.Info().Str("network_name", opts.Name).Msg("Creating Docker network")
@@ -107,94 +128,69 @@ func CreateDockerNetwork(opts NetworkOptions) error {
 	// Append the network name
 	args = append(args, opts.Name)
 
-	// Run the command
-	cmd := exec.Command("docker", args...)
-	output, err := cmd.CombinedOutput()
+	// Execute the command with retry mechanism
+	ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
+	defer cancel()
+
+	output, err := executeDockerCommand(ctx, opts.RetryCount, "docker", args...)
 	if err != nil {
-		log.Error().Err(err).Str("output", string(output)).Str("network_name", opts.Name).Msg("Failed to create Docker network")
-		return fmt.Errorf("failed to create network: %w", err)
+		return fmt.Errorf("failed to create network after %d attempts: %w", opts.RetryCount, err)
 	}
 
-	log.Info().Str("network_name", opts.Name).Msg("Docker network created successfully")
+	log.Info().Str("network_name", opts.Name).Str("output", string(output)).Msg("Docker network created successfully")
 	return nil
 }
 
-// InspectNetwork inspects a Docker network by name or ID.
-func InspectNetwork(networkName string) (string, error) {
-	log.Info().Str("network_name", networkName).Msg("Inspecting Docker network")
-
-	cmd := exec.Command("docker", "network", "inspect", networkName)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Error().Err(err).Str("network_name", networkName).Str("output", string(output)).Msg("Failed to inspect Docker network")
-		return "", fmt.Errorf("failed to inspect network: %w", err)
+// InspectNetwork inspects a Docker network by name or ID, with retry and timeout support.
+func InspectNetwork(networkName string, retryCount int, retryDelay time.Duration, timeout time.Duration) (string, error) {
+	if retryCount <= 0 {
+		retryCount = defaultRetryCount
+	}
+	if retryDelay <= 0 {
+		retryDelay = defaultRetryDelay
+	}
+	if timeout <= 0 {
+		timeout = defaultCommandTimeout
 	}
 
-	log.Info().Str("network_name", networkName).Msg("Docker network inspected successfully")
+	log.Info().Str("network_name", networkName).Msg("Inspecting Docker network")
+
+	// Execute the command with retry mechanism
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	output, err := executeDockerCommand(ctx, retryCount, "docker", "network", "inspect", networkName)
+	if err != nil {
+		return "", fmt.Errorf("failed to inspect network after %d attempts: %w", retryCount, err)
+	}
+
+	log.Info().Str("network_name", networkName).Str("output", string(output)).Msg("Docker network inspected successfully")
 	return string(output), nil
 }
 
-// RemoveNetwork removes a Docker network by name or ID.
-func RemoveNetwork(networkName string) error {
+// RemoveNetwork removes a Docker network by name or ID, with retry and timeout support.
+func RemoveNetwork(networkName string, retryCount int, retryDelay time.Duration, timeout time.Duration) error {
+	if retryCount <= 0 {
+		retryCount = defaultRetryCount
+	}
+	if retryDelay <= 0 {
+		retryDelay = defaultRetryDelay
+	}
+	if timeout <= 0 {
+		timeout = defaultCommandTimeout
+	}
+
 	log.Info().Str("network_name", networkName).Msg("Removing Docker network")
 
-	cmd := exec.Command("docker", "network", "rm", networkName)
-	output, err := cmd.CombinedOutput()
+	// Execute the command with retry mechanism
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	_, err := executeDockerCommand(ctx, retryCount, "docker", "network", "rm", networkName)
 	if err != nil {
-		log.Error().Err(err).Str("network_name", networkName).Str("output", string(output)).Msg("Failed to remove Docker network")
-		return fmt.Errorf("failed to remove network: %w", err)
+		return fmt.Errorf("failed to remove network after %d attempts: %w", retryCount, err)
 	}
 
 	log.Info().Str("network_name", networkName).Msg("Docker network removed successfully")
 	return nil
-}
-
-// ListComposeNetworks lists all networks associated with the Docker Compose project.
-func ListComposeNetworks(composeFilePath string) (map[string]string, error) {
-	log.Info().Str("compose_file_path", composeFilePath).Msg("Listing networks in Docker Compose project")
-
-	cmd := exec.Command("docker-compose", "-f", composeFilePath, "config", "--services")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Error().Err(err).Str("output", string(output)).Msg("Failed to list Docker Compose networks")
-		return nil, fmt.Errorf("failed to list networks: %w", err)
-	}
-
-	lines := strings.Split(string(output), "\n")
-	networks := make(map[string]string)
-	for _, line := range lines {
-		if line != "" {
-			networkName := line
-			netID, err := getNetworkID(networkName)
-			if err != nil {
-				log.Warn().Str("network_name", networkName).Msg("Network ID not found")
-			} else {
-				networks[networkName] = netID
-			}
-		}
-	}
-
-	log.Info().Int("network_count", len(networks)).Msg("Docker Compose networks listed successfully")
-	return networks, nil
-}
-
-// getNetworkID fetches the network ID based on the network name.
-func getNetworkID(networkName string) (string, error) {
-	log.Debug().Str("network_name", networkName).Msg("Fetching network ID")
-
-	cmd := exec.Command("docker", "network", "ls", "--filter", fmt.Sprintf("name=%s", networkName), "--format", "{{.ID}}")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Error().Err(err).Str("network_name", networkName).Str("output", string(output)).Msg("Failed to get network ID")
-		return "", fmt.Errorf("failed to get network ID: %w", err)
-	}
-
-	networkID := strings.TrimSpace(string(output))
-	if networkID == "" {
-		log.Warn().Str("network_name", networkName).Msg("No network found with the specified name")
-		return "", fmt.Errorf("no network found with the name %s", networkName)
-	}
-
-	log.Debug().Str("network_name", networkName).Str("network_id", networkID).Msg("Network ID fetched successfully")
-	return networkID, nil
 }

@@ -1,6 +1,4 @@
-# Pull Request Template
-
-## Description
+# Description
 
 Please provide a summary of the changes you made. Include context and why the change was necessary. You can reference
 issues related to the pull request (e.g., "Closes #123").

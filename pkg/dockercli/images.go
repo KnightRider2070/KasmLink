@@ -7,16 +7,14 @@ import (
 	"github.com/rs/zerolog/log"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
-// PullImage pulls a Docker image from a registry.
-func PullImage(imageName string) error {
+// PullImage pulls a Docker image from a registry with retry mechanism.
+func PullImage(ctx context.Context, retries int, imageName string) error {
 	log.Info().Str("image_name", imageName).Msg("Pulling Docker image")
-	cmd := exec.Command("docker", "pull", imageName)
-	output, err := cmd.CombinedOutput()
+	output, err := executeDockerCommand(ctx, retries, "docker", "pull", imageName)
 	if err != nil {
 		log.Error().Err(err).Str("output", string(output)).Msg("Failed to pull Docker image")
 		return fmt.Errorf("failed to pull image: %w", err)
@@ -25,11 +23,10 @@ func PullImage(imageName string) error {
 	return nil
 }
 
-// PushImage pushes a Docker image to a registry.
-func PushImage(imageName string) error {
+// PushImage pushes a Docker image to a registry with retry mechanism.
+func PushImage(ctx context.Context, retries int, imageName string) error {
 	log.Info().Str("image_name", imageName).Msg("Pushing Docker image")
-	cmd := exec.Command("docker", "push", imageName)
-	output, err := cmd.CombinedOutput()
+	output, err := executeDockerCommand(ctx, retries, "docker", "push", imageName)
 	if err != nil {
 		log.Error().Err(err).Str("output", string(output)).Msg("Failed to push Docker image")
 		return fmt.Errorf("failed to push image: %w", err)
@@ -38,11 +35,10 @@ func PushImage(imageName string) error {
 	return nil
 }
 
-// RemoveImage removes a Docker image by name or ID.
-func RemoveImage(imageName string) error {
+// RemoveImage removes a Docker image by name or ID with retry mechanism.
+func RemoveImage(ctx context.Context, retries int, imageName string) error {
 	log.Info().Str("image_name", imageName).Msg("Removing Docker image")
-	cmd := exec.Command("docker", "rmi", imageName)
-	output, err := cmd.CombinedOutput()
+	output, err := executeDockerCommand(ctx, retries, "docker", "rmi", imageName)
 	if err != nil {
 		log.Error().Err(err).Str("output", string(output)).Msg("Failed to remove Docker image")
 		return fmt.Errorf("failed to remove image: %w", err)
@@ -51,11 +47,10 @@ func RemoveImage(imageName string) error {
 	return nil
 }
 
-// ListImages lists all Docker images on the host.
-func ListImages() ([]string, error) {
+// ListImages lists all Docker images on the host with retry mechanism.
+func ListImages(ctx context.Context, retries int) ([]string, error) {
 	log.Info().Msg("Listing all Docker images")
-	cmd := exec.Command("docker", "images", "--format", "{{.Repository}}:{{.Tag}}")
-	output, err := cmd.CombinedOutput()
+	output, err := executeDockerCommand(ctx, retries, "docker", "images", "--format", "{{.Repository}}:{{.Tag}}")
 	if err != nil {
 		log.Error().Err(err).Str("output", string(output)).Msg("Failed to list Docker images")
 		return nil, fmt.Errorf("failed to list Docker images: %w", err)
@@ -66,16 +61,16 @@ func ListImages() ([]string, error) {
 	return images, nil
 }
 
-// UpdateAllImages pulls the latest version of all present Docker images.
-func UpdateAllImages() error {
-	images, err := ListImages()
+// UpdateAllImages pulls the latest version of all present Docker images with retry mechanism.
+func UpdateAllImages(ctx context.Context, retries int) error {
+	images, err := ListImages(ctx, retries)
 	if err != nil {
 		return fmt.Errorf("failed to list Docker images: %w", err)
 	}
 
 	for _, image := range images {
 		log.Info().Str("image_name", image).Msg("Updating Docker image")
-		err := PullImage(image)
+		err := PullImage(ctx, retries, image)
 		if err != nil {
 			log.Error().Err(err).Str("image_name", image).Msg("Failed to update Docker image")
 			return fmt.Errorf("failed to update image %s: %w", image, err)
@@ -86,9 +81,9 @@ func UpdateAllImages() error {
 	return nil
 }
 
-// ExportImageToTar exports a Docker image to a tar file.
+// ExportImageToTar exports a Docker image to a tar file with retry mechanism.
 // If outputFile is an empty string, it creates the tar file in a temporary directory.
-func ExportImageToTar(imageName, outputFile string) (string, error) {
+func ExportImageToTar(ctx context.Context, retries int, imageName, outputFile string) (string, error) {
 	log.Info().Str("image_name", imageName).Str("output_file", outputFile).Msg("Exporting Docker image to tar file")
 
 	// Initialize Docker client
@@ -135,8 +130,8 @@ func ExportImageToTar(imageName, outputFile string) (string, error) {
 	return outputFile, nil
 }
 
-// ImportImageFromTar imports a Docker image from a tar file
-func ImportImageFromTar(tarFilePath string) error {
+// ImportImageFromTar imports a Docker image from a tar file with retry mechanism.
+func ImportImageFromTar(ctx context.Context, retries int, tarFilePath string) error {
 	log.Info().Str("tar_file_path", tarFilePath).Msg("Importing Docker image from tar file")
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {

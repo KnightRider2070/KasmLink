@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/rs/zerolog/log"
+	"time"
 )
 
 // ListImages fetches the available images from the KASM API.
@@ -17,11 +18,22 @@ func (api *KasmAPI) ListImages() ([]Image, error) {
 		APIKeySecret: api.APIKeySecret,
 	}
 
-	// Make POST request
-	response, err := api.MakePostRequest(url, request)
-	if err != nil {
-		log.Error().Err(err).Str("url", url).Msg("Failed to fetch images")
-		return nil, err
+	// Make POST request with retries
+	retries := 3
+	var response []byte
+	var err error
+	for retries > 0 {
+		response, err = api.MakePostRequest(url, request)
+		if err != nil {
+			log.Error().Err(err).Str("url", url).Int("retries_left", retries-1).Msg("Failed to fetch images, retrying")
+			retries--
+			if retries == 0 {
+				return nil, fmt.Errorf("failed to fetch images after retries: %v", err)
+			}
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		break
 	}
 
 	// Parse response

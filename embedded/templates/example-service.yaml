@@ -11,7 +11,7 @@ services:
     environment:
       - ENV_VAR=example_value
     healthcheck:
-      test: ["CMD-SHELL", "echo 'healthy'"]
+      test: [ "CMD-SHELL", "echo 'healthy'" ]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -13,6 +13,7 @@ type TargetUser struct {
 	Organization string `json:"organization,omitempty"`
 	Phone        string `json:"phone,omitempty"`
 	Password     string `json:"password,omitempty"`
+	Notes        string `json:"notes,omitempty"` // Added Notes field based on new API
 }
 
 // UserGroup represents a user's group in the response.
@@ -52,6 +53,7 @@ type UserResponse struct {
 	Disabled     bool          `json:"disabled"`
 	Locked       bool          `json:"locked"`
 	Created      string        `json:"created"`
+	Notes        *string       `json:"notes"` // Added Notes field based on new API
 }
 
 // UserAttributes represents a user's attributes (preferences).
@@ -65,7 +67,7 @@ type UserAttributes struct {
 	AutoLoginKasm      *bool   `json:"auto_login_kasm"`
 }
 
-//KASM API STRUCTS
+// KASM API STRUCTS
 
 // RequestKasmRequest represents the request to start a Kasm session.
 type RequestKasmRequest struct {
@@ -77,6 +79,7 @@ type RequestKasmRequest struct {
 	Environment    map[string]string `json:"environment,omitempty"`
 	ClientLanguage *string           `json:"client_language,omitempty"`
 	ClientTimezone *string           `json:"client_timezone,omitempty"`
+	KasmURL        *string           `json:"kasm_url,omitempty"` // Added KasmURL field based on new API
 }
 
 // RequestKasmResponse represents the response when a Kasm session is requested.

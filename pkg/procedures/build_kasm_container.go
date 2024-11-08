@@ -1,13 +1,18 @@
 package procedures
 
 import (
+	"context"
 	"fmt"
 	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
 	embedfiles "kasmlink/embedded"
 	"kasmlink/pkg/dockercli"
 	"kasmlink/pkg/dockerutils"
+	shadowscp "kasmlink/pkg/scp"
+	shadowssh "kasmlink/pkg/ssh"
 	"os"
+	"path/filepath"
+	"time"
 )
 
 // buildCoreImageKasm orchestrates the Docker image build using the embedded Dockerfile and base image.
@@ -37,21 +42,38 @@ func BuildCoreImageKasm(imageTag, baseImage string) error {
 }
 
 // DeployKasmDockerImage builds, exports, and loads a Docker image on a remote node.
-func DeployKasmDockerImage(imageTag, baseImage, dockerfilePath, targetNodeAddress, targetNodePath, sshUser, sshPassword string) error {
+func DeployKasmDockerImage(imageTag, baseImage, dockerfilePath, targetNodePath string) error {
 	// Step 1: Build the Docker image
 	if err := BuildCoreImageKasm(imageTag, baseImage); err != nil {
 		return fmt.Errorf("failed to build Docker image: %v", err)
 	}
 
-	// Step 3: Export image to temp file
-	tarFilePath, err := dockercli.ExportImageToTar(imageTag, "")
+	// Step 2: Export image to temp file
+	ctx := context.Background() // Creating a context object
+	retries := 3                // Set the number of retries for the export
+	tarFilePath, err := dockercli.ExportImageToTar(ctx, retries, imageTag, "")
 	if err != nil {
 		return fmt.Errorf("failed to export Docker image to tar: %v", err)
 	}
 	defer os.Remove(tarFilePath) // Cleanup tar file after deployment
 
-	// Step 3: Copy and load the Docker image on the remote node
-	err = ImportDockerImageToRemoteNode(sshUser, sshPassword, targetNodeAddress, tarFilePath, targetNodePath)
+	// Step 3: Establish SSH connection to target node
+	sshConfig := &shadowssh.SSHConfig{
+		Username:          *shadowssh.SshUser,
+		Password:          *shadowssh.SshPassword,
+		NodeAddress:       *shadowssh.TargetNodeAddr,
+		KnownHostsFile:    *shadowssh.KnownHostsFile,
+		ConnectionTimeout: *shadowssh.ConnectionTimeout,
+	}
+
+	sshClient, err := shadowssh.NewSSHClient(sshConfig)
+	if err != nil {
+		return fmt.Errorf("failed to establish SSH connection: %v", err)
+	}
+	defer sshClient.Close()
+
+	// Step 4: Copy and load the Docker image on the remote node
+	err = ImportDockerImageToRemoteNode(sshConfig.Username, sshConfig.Password, sshConfig.NodeAddress, tarFilePath, targetNodePath)
 	if err != nil {
 		return fmt.Errorf("failed to import Docker image on remote node: %v", err)
 	}
@@ -60,27 +82,67 @@ func DeployKasmDockerImage(imageTag, baseImage, dockerfilePath, targetNodeAddres
 	return nil
 }
 
-func DeployBackendComposeFile(composeFilePath, targetNodeAddress, targetNodePath, sshUser, sshPassword string) error {
-	// Step 1: Copy compose file onto node
-	err := shadowscp.ShadowCopyFile(sshUser, sshPassword, targetNodeAddress, composeFilePath, targetNodePath)
-	if err != nil {
-		return fmt.Errorf("failed to copy compose file onto remote node: %v", err)
+// DeployComposeFile uploads a specified Docker Compose file and deploys the services on the target node.
+func DeployComposeFile(composeFilePath, targetNodePath string) error {
+	// Step 1: Establish SSH connection to target node
+	sshConfig := &shadowssh.SSHConfig{
+		Username:          *shadowssh.SshUser,
+		Password:          *shadowssh.SshPassword,
+		NodeAddress:       *shadowssh.TargetNodeAddr,
+		KnownHostsFile:    *shadowssh.KnownHostsFile,
+		ConnectionTimeout: *shadowssh.ConnectionTimeout,
 	}
 
-	// Step 2: Start compose backend
-	//TODO: Assign targetNodeComposeFilePath correct value and also log compose output for the user for 20 seconds
-	targetNodeComposeFilePath := Filepath.join(targetNodePath)
-	dockerComposeUpCommand := fmt.Sprintf("docker compose up %s", )
-	err = shadowssh.ShadowExecuteCommand(username, password, host, checkCommand)
+	sshClient, err := shadowssh.NewSSHClient(sshConfig)
+	if err != nil {
+		return fmt.Errorf("failed to establish SSH connection: %v", err)
+	}
+	defer sshClient.Close()
+
+	// Step 2: Copy compose file onto node
+	log.Info().
+		Str("source", composeFilePath).
+		Str("destination", targetNodePath).
+		Msg("Starting to copy compose file onto remote node")
+
+	err = shadowscp.ShadowCopyFile(composeFilePath, targetNodePath)
 	if err != nil {
 		log.Error().
 			Err(err).
-			Str("host", host).
+			Str("nodeAddress", sshConfig.NodeAddress).
+			Str("targetPath", targetNodePath).
+			Msg("Failed to copy compose file onto remote node")
+		return fmt.Errorf("failed to copy compose file onto remote node: %v", err)
+	}
+
+	log.Info().
+		Str("nodeAddress", sshConfig.NodeAddress).
+		Str("composeFile", targetNodePath).
+		Msg("Compose file copied successfully")
+
+	// Step 3: Start compose backend
+	targetNodeComposeFilePath := filepath.Join(targetNodePath, filepath.Base(composeFilePath))
+	dockerComposeUpCommand := fmt.Sprintf("docker compose -f %s up -d", targetNodeComposeFilePath)
+
+	log.Info().
+		Str("command", dockerComposeUpCommand).
+		Str("nodeAddress", sshConfig.NodeAddress).
+		Msg("Starting docker compose on the remote node")
+
+	// 1 Minute of log output
+	output, err := shadowssh.ShadowExecuteCommandWithOutput(sshClient, dockerComposeUpCommand, 1*time.Minute)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("host", sshConfig.NodeAddress).
 			Str("command", dockerComposeUpCommand).
+			Str("output", output).
 			Msg("Failed to start backend on remote node using compose")
 		return fmt.Errorf("failed to start backend on remote node using compose: %v", err)
 	}
 
-	log.Info().Msg("Backend compose deployed successfully on target node")
+	log.Info().
+		Str("nodeAddress", sshConfig.NodeAddress).
+		Msg("Backend compose deployed successfully on target node")
 	return nil
 }

@@ -7,17 +7,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
-
-// Configure zerolog to log to console
-func init() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
-}
 
 // AskUserToSkipTLS asks the user whether to skip TLS certificate verification
 func AskUserToSkipTLS() bool {
@@ -35,26 +28,49 @@ func AskUserToSkipTLS() bool {
 
 // CreateHTTPClient creates an HTTP client with optional TLS verification
 func CreateHTTPClient(skipTLSVerification bool) *http.Client {
-	if skipTLSVerification {
-		log.Warn().Msg("TLS certificate verification is disabled.")
-		return &http.Client{
-			Timeout: 30 * time.Second,
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true, // This skips TLS verification
-				},
-			},
-		}
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: skipTLSVerification, // Configures TLS verification
+		},
+		IdleConnTimeout:     30 * time.Second,
+		MaxIdleConns:        10,
+		MaxIdleConnsPerHost: 5,
+		DisableKeepAlives:   false,
+		MaxConnsPerHost:     20,
 	}
 
-	log.Info().Msg("TLS certificate verification is enabled.")
-	return &http.Client{Timeout: 30 * time.Second}
+	log.Info().Bool("tls_verification_skipped", skipTLSVerification).Msg("Configuring HTTP client")
+
+	return &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: transport,
+	}
+}
+
+// HandleResponse reads the response body and checks for errors or unexpected status codes
+func HandleResponse(resp *http.Response, expectedStatusCode int) ([]byte, error) {
+	defer resp.Body.Close()
+
+	if resp.StatusCode != expectedStatusCode {
+		log.Warn().Str("url", resp.Request.URL.String()).Int("status", resp.StatusCode).Msg("Unexpected response status")
+		return nil, fmt.Errorf("unexpected response status: %s", resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Error().Err(err).Str("url", resp.Request.URL.String()).Msg("Failed to read response body")
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	log.Info().Str("url", resp.Request.URL.String()).Msg("Request succeeded")
+	return body, nil
 }
 
 // MakeGetRequest handles making GET requests to the KASM API.
 func (api *KasmAPI) MakeGetRequest(url string) ([]byte, error) {
 	log.Info().Str("url", url).Msg("Initiating GET request")
 	client := CreateHTTPClient(api.SkipTLSVerification)
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Error().Err(err).Str("url", url).Msg("Failed to create GET request")
@@ -62,26 +78,22 @@ func (api *KasmAPI) MakeGetRequest(url string) ([]byte, error) {
 	}
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.APIKey))
 
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Error().Err(err).Str("url", url).Msg("GET request failed")
-		return nil, fmt.Errorf("GET request failed: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		log.Warn().Str("url", url).Int("status", resp.StatusCode).Msg("Unexpected response status")
-		return nil, fmt.Errorf("unexpected response status: %s", resp.Status)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Error().Err(err).Str("url", url).Msg("Failed to read response body")
-		return nil, fmt.Errorf("failed to read response body: %v", err)
+	retries := 3
+	for retries > 0 {
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Error().Err(err).Str("url", url).Int("retries_left", retries-1).Msg("GET request failed, retrying")
+			retries--
+			if retries == 0 {
+				return nil, fmt.Errorf("GET request failed after retries: %v", err)
+			}
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		return HandleResponse(resp, http.StatusOK)
 	}
 
-	log.Info().Str("url", url).Msg("GET request succeeded")
-	return body, nil
+	return nil, fmt.Errorf("GET request failed unexpectedly")
 }
 
 // MakePostRequest handles making POST requests to the KASM API
@@ -106,29 +118,24 @@ func (api *KasmAPI) MakePostRequest(url string, payload interface{}) ([]byte, er
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.APIKey))
 
 	// Execute the request
 	log.Info().Str("url", url).Msg("Sending POST request")
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Error().Err(err).Str("url", url).Msg("POST request failed")
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Check response status
-	if resp.StatusCode != http.StatusOK {
-		log.Warn().Str("url", url).Int("status", resp.StatusCode).Msg("Received non-OK response")
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	// Read response body
-	responseData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Error().Err(err).Str("url", url).Msg("Failed to read POST response body")
-		return nil, err
+	retries := 3
+	for retries > 0 {
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Error().Err(err).Str("url", url).Int("retries_left", retries-1).Msg("POST request failed, retrying")
+			retries--
+			if retries == 0 {
+				return nil, fmt.Errorf("POST request failed after retries: %v", err)
+			}
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		return HandleResponse(resp, http.StatusOK)
 	}
 
-	log.Info().Str("url", url).Msg("POST request succeeded")
-	return responseData, nil
+	return nil, fmt.Errorf("POST request failed unexpectedly")
 }

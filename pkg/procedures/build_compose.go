@@ -89,7 +89,7 @@ func PopulateComposeWithTemplate(composeFile *dockercompose.ComposeFile, folderP
 	// Load and parse the template
 	tmpl, err := loadTemplate(templatePath, templateName)
 	if err != nil {
-		return err
+		return fmt.Errorf("error loading template: %w", err)
 	}
 
 	// Ensure networks and volumes are initialized in the Compose file
@@ -103,7 +103,8 @@ func PopulateComposeWithTemplate(composeFile *dockercompose.ComposeFile, folderP
 		// Define and render the service structure
 		service := createServiceConfig(serviceName)
 		if err := renderServiceToCompose(tmpl, service, serviceName, composeFile); err != nil {
-			return err
+			log.Error().Err(err).Str("serviceName", serviceName).Msg("Failed to render service to compose file")
+			return fmt.Errorf("failed to render service %s to compose file: %w", serviceName, err)
 		}
 	}
 
@@ -121,21 +122,27 @@ func ensureNetworksAndVolumes(composeFile *dockercompose.ComposeFile) {
 	}
 
 	// Add example network
-	composeFile.Networks["example_network"] = dockercompose.Network{
-		Driver: "bridge",
-		DriverOpts: map[string]string{
-			"subnet": "10.5.0.0/16",
-		},
+	if _, exists := composeFile.Networks["example_network"]; !exists {
+		composeFile.Networks["example_network"] = dockercompose.Network{
+			Driver: "bridge",
+			DriverOpts: map[string]string{
+				"subnet": "10.5.0.0/16",
+			},
+		}
+		log.Info().Str("network", "example_network").Msg("Default network added to ComposeFile")
 	}
 
 	// Add example volume
-	composeFile.Volumes["nfs_data"] = dockercompose.Volume{
-		Driver: "local",
-		DriverOpts: map[string]string{
-			"type":   "none",
-			"device": "/path/to/host/directory",
-			"o":      "bind",
-		},
+	if _, exists := composeFile.Volumes["nfs_data"]; !exists {
+		composeFile.Volumes["nfs_data"] = dockercompose.Volume{
+			Driver: "local",
+			DriverOpts: map[string]string{
+				"type":   "none",
+				"device": "/path/to/host/directory",
+				"o":      "bind",
+			},
+		}
+		log.Info().Str("volume", "nfs_data").Msg("Default volume added to ComposeFile")
 	}
 }
 
@@ -151,6 +158,7 @@ func loadTemplate(templatePath, templateName string) (*template.Template, error)
 		log.Error().Err(err).Str("templateName", templateName).Msg("Failed to parse template")
 		return nil, fmt.Errorf("failed to parse template %s: %w", templateName, err)
 	}
+	log.Info().Str("templateName", templateName).Msg("Template loaded and parsed successfully")
 	return tmpl, nil
 }
 
@@ -164,6 +172,7 @@ func generateServiceName(serviceNames map[int]string, index int, templateName st
 
 // createServiceConfig defines a new service configuration.
 func createServiceConfig(serviceName string) dockercompose.Service {
+	log.Debug().Str("serviceName", serviceName).Msg("Creating service configuration")
 	return dockercompose.Service{
 		ContainerName: fmt.Sprintf("%s_container", serviceName),
 		Build: &dockercompose.BuildConfig{
@@ -204,7 +213,33 @@ func renderServiceToCompose(tmpl *template.Template, service dockercompose.Servi
 		log.Error().Err(err).Str("serviceName", serviceName).Msg("Failed to apply template")
 		return fmt.Errorf("failed to apply template for service %s: %w", serviceName, err)
 	}
+
+	// Merge volumes and networks if already present
+	existingService, exists := composeFile.Services[serviceName]
+	if exists {
+		// Merge volumes
+		service.Volumes = mergeStringSlices(existingService.Volumes, service.Volumes)
+		// Merge networks
+		service.NetworkConfig.Networks = mergeStringSlices(existingService.NetworkConfig.Networks, service.NetworkConfig.Networks)
+	}
+
 	composeFile.Services[serviceName] = service
-	log.Info().Str("serviceName", serviceName).Msg("Service added to ComposeFile")
+	log.Info().Str("serviceName", serviceName).Msg("Service added to ComposeFile successfully")
 	return nil
+}
+
+// mergeStringSlices merges two slices of strings, avoiding duplicates.
+func mergeStringSlices(slice1, slice2 []string) []string {
+	set := make(map[string]struct{})
+	for _, v := range slice1 {
+		set[v] = struct{}{}
+	}
+	for _, v := range slice2 {
+		set[v] = struct{}{}
+	}
+	result := make([]string, 0, len(set))
+	for key := range set {
+		result = append(result, key)
+	}
+	return result
 }

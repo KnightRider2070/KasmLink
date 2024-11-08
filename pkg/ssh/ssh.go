@@ -1,78 +1,167 @@
 package shadowssh
 
 import (
+	"bufio"
+	"bytes"
+	"flag"
 	"fmt"
+	"io"
+	"time"
+
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
-	"io"
-	"os"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
-// ShadowExecuteCommand connects to a remote node via SSH and executes the specified command.
-func ShadowExecuteCommand(agentName, secretKey, nodeAddress, shadowCommand string) error {
-	log.Info().
-		Str("agent_name", agentName).
-		Str("node_address", nodeAddress).
-		Str("command", shadowCommand).
-		Msg("Starting remote command execution via SSH")
+// SSHConfig holds SSH connection parameters provided via CLI
+var (
+	SshUser           = flag.String("ssh-user", "", "Username for SSH connection")
+	SshPassword       = flag.String("ssh-password", "", "Password for SSH connection")
+	TargetNodeAddr    = flag.String("target-node", "", "Target node address for SSH connection")
+	KnownHostsFile    = flag.String("known-hosts", "~/.ssh/known_hosts", "Path to known_hosts file")
+	ConnectionTimeout = flag.Duration("connection-timeout", 10*time.Second, "SSH connection timeout")
+)
 
-	// Define SSH configuration
-	config := &ssh.ClientConfig{
-		User: agentName,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(secretKey),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+// SSHConfig holds the necessary information for SSH authentication and host verification.
+type SSHConfig struct {
+	Username          string
+	Password          string
+	NodeAddress       string
+	KnownHostsFile    string
+	ConnectionTimeout time.Duration
+}
+
+// NewSSHConfigFromFlags returns an SSHConfig struct populated with values from the CLI flags.
+func NewSSHConfigFromFlags() *SSHConfig {
+	return &SSHConfig{
+		Username:          *SshUser,
+		Password:          *SshPassword,
+		NodeAddress:       *TargetNodeAddr,
+		KnownHostsFile:    *KnownHostsFile,
+		ConnectionTimeout: *ConnectionTimeout,
+	}
+}
+
+// NewSSHClient establishes an SSH connection using the provided configuration.
+func NewSSHClient(config *SSHConfig) (*ssh.Client, error) {
+	// Configure host key verification from the known hosts file.
+	hostKeyCallback, err := knownhosts.New(config.KnownHostsFile)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to load known hosts for SSH verification")
+		return nil, fmt.Errorf("failed to load known hosts: %v", err)
 	}
 
-	// Connect to the remote node
-	shadowClient, err := ssh.Dial("tcp", nodeAddress, config)
+	// Configure SSH client authentication and connection.
+	sshConfig := &ssh.ClientConfig{
+		User: config.Username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(config.Password),
+		},
+		HostKeyCallback: hostKeyCallback,
+		Timeout:         config.ConnectionTimeout,
+	}
+
+	// Connect to the SSH server.
+	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:22", config.NodeAddress), sshConfig)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to establish SSH connection")
-		return fmt.Errorf("failed to dial SSH: %v", err)
+		return nil, fmt.Errorf("failed to dial SSH: %v", err)
 	}
-	defer shadowClient.Close()
+
 	log.Debug().Msg("SSH connection established")
+	return client, nil
+}
 
-	// Create a session
-	shadowSession, err := shadowClient.NewSession()
+// ShadowExecuteCommandWithOutput executes a command over SSH and logs the output for a specified duration.
+func ShadowExecuteCommandWithOutput(client *ssh.Client, command string, logDuration time.Duration) (string, error) {
+	// Create a new session for the command.
+	session, err := client.NewSession()
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to create SSH session")
-		return fmt.Errorf("failed to create SSH session: %v", err)
+		return "", fmt.Errorf("failed to create SSH session: %v", err)
 	}
-	defer shadowSession.Close()
-	log.Debug().Msg("SSH session created")
+	defer session.Close()
 
-	// Obtain stdout pipe
-	stdout, err := shadowSession.StdoutPipe()
+	// Get pipes for standard output and error.
+	stdoutPipe, err := session.StdoutPipe()
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to set up stdout pipe")
-		return fmt.Errorf("failed to get stdout pipe: %v", err)
+		return "", fmt.Errorf("failed to get stdout pipe: %v", err)
 	}
 
-	// Run the command on the remote node
-	if err := shadowSession.Start(shadowCommand); err != nil {
-		log.Error().Err(err).Str("command", shadowCommand).Msg("Failed to start command execution")
-		return fmt.Errorf("failed to run command: %v", err)
-	}
-	log.Info().Str("command", shadowCommand).Msg("Command execution started on remote node")
-
-	// Print the command output to the console
-	if _, err := io.Copy(os.Stdout, stdout); err != nil {
-		log.Error().Err(err).Msg("Failed to read command output")
-		return fmt.Errorf("failed to read command output: %v", err)
-	}
-	log.Debug().Msg("Command output successfully copied to stdout")
-
-	// Wait for the command to finish
-	if err := shadowSession.Wait(); err != nil {
-		log.Error().Err(err).Msg("Command execution did not complete successfully")
-		return fmt.Errorf("failed to wait for command to finish: %v", err)
+	stderrPipe, err := session.StderrPipe()
+	if err != nil {
+		return "", fmt.Errorf("failed to get stderr pipe: %v", err)
 	}
 
-	log.Info().
-		Str("command", shadowCommand).
-		Str("node_address", nodeAddress).
-		Msg("Command executed successfully on remote node")
-	return nil
+	// Start the command.
+	if err := session.Start(command); err != nil {
+		return "", fmt.Errorf("failed to start command: %v", err)
+	}
+
+	// Channels for real-time logging and capturing output.
+	outputChan := make(chan string)
+	errChan := make(chan error)
+	go func() {
+		defer close(outputChan)
+
+		// Rename the variable to avoid conflict with the `scanner` package
+		outputScanner := bufio.NewScanner(io.MultiReader(stdoutPipe, stderrPipe))
+		for outputScanner.Scan() {
+			outputChan <- outputScanner.Text()
+		}
+		if err := outputScanner.Err(); err != nil && err != io.EOF {
+			errChan <- fmt.Errorf("error reading output: %v", err)
+		}
+		close(errChan)
+	}()
+
+	// Log command output in real-time for the specified duration.
+	var outputBuffer string
+	logTimer := time.NewTimer(logDuration)
+	log.Info().Str("command", command).Msg("Logging command output")
+
+	for {
+		select {
+		case output, ok := <-outputChan:
+			if !ok {
+				log.Info().Msg("Command output completed")
+				return outputBuffer, session.Wait()
+			}
+			log.Info().Str("output", output).Msg("Command output")
+			outputBuffer += output + "\n"
+		case err := <-errChan:
+			if err != nil {
+				log.Error().Err(err).Msg("Error reading command output")
+				return "", err
+			}
+		case <-logTimer.C:
+			log.Info().Msg("Logging duration expired; capturing remaining output")
+			for output := range outputChan {
+				outputBuffer += output + "\n"
+			}
+			return outputBuffer, session.Wait()
+		}
+	}
+}
+
+// ExecuteCommand connects to a remote node via SSH, executes a command, and returns the combined stdout and stderr output.
+func ExecuteCommand(client *ssh.Client, command string) (string, error) {
+	// Create a new session for the command
+	session, err := client.NewSession()
+	if err != nil {
+		return "", fmt.Errorf("failed to create SSH session: %v", err)
+	}
+	defer session.Close()
+
+	// Capture both stdout and stderr
+	var stdoutBuf, stderrBuf bytes.Buffer
+	session.Stdout = &stdoutBuf
+	session.Stderr = &stderrBuf
+
+	// Execute the command
+	if err := session.Run(command); err != nil {
+		return "", fmt.Errorf("command execution failed: %v, stderr: %s", err, stderrBuf.String())
+	}
+
+	// Return combined output
+	return stdoutBuf.String(), nil
 }
