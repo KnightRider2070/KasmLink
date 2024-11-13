@@ -42,26 +42,41 @@ func BuildCoreImageKasm(imageTag, baseImage string) error {
 }
 
 // DeployKasmDockerImage builds, exports, and loads a Docker image on a remote node.
-func DeployKasmDockerImage(imageTag, baseImage, dockerfilePath, targetNodePath string) error {
-	// Step 1: Build the Docker image
-	if err := BuildCoreImageKasm(imageTag, baseImage); err != nil {
-		return fmt.Errorf("failed to build Docker image: %v", err)
-	}
+// If a localTarFilePath is provided, it will use that file instead of building a new image.
+func DeployKasmDockerImage(imageTag, baseImage, dockerfilePath, targetNodePath, localTarFilePath string) error {
+	var tarFilePath string
+	var err error
 
-	// Step 2: Export image to temp file
-	ctx := context.Background() // Creating a context object
-	retries := 3                // Set the number of retries for the export
-	tarFilePath, err := dockercli.ExportImageToTar(ctx, retries, imageTag, "")
-	if err != nil {
-		return fmt.Errorf("failed to export Docker image to tar: %v", err)
-	}
-	defer func() {
-		if err := os.Remove(tarFilePath); err != nil {
-			log.Error().Err(err).Msg("Failed to remove tar file")
+	// Step 1: Check if a local tar file is provided and exists
+	if localTarFilePath != "" {
+		if _, err = os.Stat(localTarFilePath); err == nil {
+			// Local tar file exists, use it instead of building a new image
+			tarFilePath = localTarFilePath
+			log.Info().Msg("Using existing local tar file for Docker image deployment")
+		} else {
+			return fmt.Errorf("local tar file specified but not found: %v", err)
 		}
-	}()
+	} else {
+		// Step 2: Build the Docker image if no local file is provided
+		if err = BuildCoreImageKasm(imageTag, baseImage); err != nil {
+			return fmt.Errorf("failed to build Docker image: %v", err)
+		}
 
-	// Step 3: Establish SSH connection to target node
+		// Step 3: Export image to temp file
+		ctx := context.Background() // Creating a context object
+		retries := 3                // Set the number of retries for the export
+		tarFilePath, err = dockercli.ExportImageToTar(ctx, retries, imageTag, "")
+		if err != nil {
+			return fmt.Errorf("failed to export Docker image to tar: %v", err)
+		}
+		defer func() {
+			if err := os.Remove(tarFilePath); err != nil {
+				log.Error().Err(err).Msg("Failed to remove tar file")
+			}
+		}()
+	}
+
+	// Step 4: Establish SSH connection to target node
 	sshConfig := &shadowssh.SSHConfig{
 		Username:          *shadowssh.SshUser,
 		Password:          *shadowssh.SshPassword,
@@ -80,7 +95,7 @@ func DeployKasmDockerImage(imageTag, baseImage, dockerfilePath, targetNodePath s
 		}
 	}()
 
-	// Step 4: Copy and load the Docker image on the remote node
+	// Step 5: Copy and load the Docker image on the remote node
 	err = ImportDockerImageToRemoteNode(sshConfig.Username, sshConfig.Password, sshConfig.NodeAddress, tarFilePath, targetNodePath)
 	if err != nil {
 		return fmt.Errorf("failed to import Docker image on remote node: %v", err)

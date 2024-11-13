@@ -36,13 +36,26 @@ var deployImageCmd = &cobra.Command{
 		dockerfilePath := args[2]
 		targetNodePath := args[3]
 
-		err := procedures.DeployKasmDockerImage(imageTag, baseImage, dockerfilePath, targetNodePath)
+		// Get the local tar file path flag
+		localTarFilePath, err := cmd.Flags().GetString("local-tar-file")
+		if err != nil {
+			fmt.Printf("Error reading local-tar-file flag: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Call the deploy function with the optional localTarFilePath
+		err = procedures.DeployKasmDockerImage(imageTag, baseImage, dockerfilePath, targetNodePath, localTarFilePath)
 		if err != nil {
 			fmt.Printf("Error deploying Docker image: %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Println("Docker image deployed successfully on remote node")
 	},
+}
+
+func init() {
+	// Register the local-tar-file flag for optional local file path
+	deployImageCmd.Flags().String("local-tar-file", "", "Optional path to a local tar file to use instead of building a new image")
 }
 
 // Command to deploy a Docker Compose file to a remote node.
