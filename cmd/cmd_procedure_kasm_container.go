@@ -27,14 +27,13 @@ var buildCoreImageCmd = &cobra.Command{
 
 // Command to deploy a Docker image on a remote node.
 var deployImageCmd = &cobra.Command{
-	Use:   "deploy-image [imageTag] [baseImage] [dockerfilePath] [targetNodePath]",
+	Use:   "deploy-image [imageTag] [baseImage] [targetNodePath]",
 	Short: "Deploy the Docker image on a remote node",
-	Args:  cobra.ExactArgs(4),
+	Args:  cobra.ExactArgs(3),
 	Run: func(cmd *cobra.Command, args []string) {
 		imageTag := args[0]
 		baseImage := args[1]
-		dockerfilePath := args[2]
-		targetNodePath := args[3]
+		targetNodePath := args[2]
 
 		// Get the local tar file path flag
 		localTarFilePath, err := cmd.Flags().GetString("local-tar-file")
@@ -44,7 +43,7 @@ var deployImageCmd = &cobra.Command{
 		}
 
 		// Call the deploy function with the optional localTarFilePath
-		err = procedures.DeployKasmDockerImage(imageTag, baseImage, dockerfilePath, targetNodePath, localTarFilePath)
+		err = procedures.DeployKasmDockerImage(imageTag, baseImage, targetNodePath, localTarFilePath)
 		if err != nil {
 			fmt.Printf("Error deploying Docker image: %v\n", err)
 			os.Exit(1)

@@ -2,8 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 	"kasmlink/pkg/dockercompose"
+	"kasmlink/pkg/procedures"
+	"os"
+	"strconv"
 )
 
 // Init initializes the root command.
@@ -15,95 +20,104 @@ func init() {
 		Long:  `Commands to manage and generate Docker Compose files, including creating new ones, loading from YAML, and using embedded templates.`,
 	}
 
-	// Add subcommands for generating, loading, and embedding Docker Compose files
-	composeCmd.AddCommand(
-		createGenerateDockerComposeCommand(),
-		createLoadDockerComposeFileCommand(),
-		createLoadEmbeddedTemplateCommand(),
-	)
+	// Add subcommands for generating Docker Compose files
+	composeCmd.AddCommand(createPopulateComposeWithTemplateCommand())
 
 	// Add "compose" to the root command
 	RootCmd.AddCommand(composeCmd)
+
 }
 
-// createGenerateDockerComposeCommand creates the command for generating a Docker Compose file.
-func createGenerateDockerComposeCommand() *cobra.Command {
+// createPopulateComposeWithTemplateCommand populates or creates a Docker Compose file with instances of a specified template.
+func createPopulateComposeWithTemplateCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "generate [templatePath] [composeFilePath] [outputPath]",
-		Short: "Generate a Docker Compose file",
-		Long:  "Generate a Docker Compose file based on a specified template and structure.",
-		Args:  cobra.ExactArgs(3),
-		Run: func(cmd *cobra.Command, args []string) {
-			templatePath := args[0]
-			composeFilePath := args[1]
-			outputPath := args[2]
-
-			// Load the ComposeFile from the provided path
-			composeFile, err := dockercompose.LoadComposeFile(composeFilePath)
-			if err != nil {
-				HandleError(err)
-				return
-			}
-
-			// Load the template
-			tmpl, err := dockercompose.LoadEmbeddedTemplate(templatePath)
-			if err != nil {
-				HandleError(err)
-				return
-			}
-
-			// Generate the Docker Compose file
-			err = dockercompose.GenerateDockerComposeFile(tmpl, *composeFile, outputPath)
-			HandleError(err)
-		},
-	}
-}
-
-// createLoadDockerComposeFileCommand creates the command for loading a Docker Compose file.
-func createLoadDockerComposeFileCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "load [composeFilePath]",
-		Short: "Load a Docker Compose configuration file",
-		Long:  "Load and parse a Docker Compose configuration file from a given path.",
-		Args:  cobra.ExactArgs(1),
+		Use:   "generate [composeFilePath] [templateFolderPath] [templateName] [count] [serviceNames...]",
+		Short: "Populate or create a Docker Compose file with instances of a specified template",
+		Long: `This command populates or creates a Docker Compose file with instances of a specified template.
+You need to provide the compose file path, the folder path containing the template YAML, the template name, 
+the count of service instances to create, and optional service names for serialization.`,
+		Args: cobra.MinimumNArgs(4),
 		Run: func(cmd *cobra.Command, args []string) {
 			composeFilePath := args[0]
-
-			// Load the Docker Compose configuration
-			composeFile, err := dockercompose.LoadComposeFile(composeFilePath)
+			templateFolderPath := args[1]
+			templateName := args[2]
+			count, err := strconv.Atoi(args[3])
 			if err != nil {
-				HandleError(err)
-				return
+				log.Error().Err(err).Msg("Invalid count value")
+				fmt.Printf("Error: invalid count value - %v\n", err)
+				os.Exit(1)
 			}
 
-			// Display a summary of the loaded configuration
-			fmt.Printf("Successfully loaded Docker Compose configuration from %s\n", composeFilePath)
-			fmt.Printf("Services: %+v\n", composeFile.Services)
+			// Parse optional service names
+			serviceNames := parseServiceNames(args[4:], count)
+
+			// Load or initialize the ComposeFile struct
+			var composeFile dockercompose.ComposeFile
+			if _, err := os.Stat(composeFilePath); os.IsNotExist(err) {
+				log.Info().Str("composeFilePath", composeFilePath).Msg("Compose file does not exist, creating a new one")
+				// Initialize a new empty compose file structure
+				composeFile = dockercompose.ComposeFile{
+					Version:  "3.8",
+					Services: make(map[string]dockercompose.Service),
+					Networks: make(map[string]dockercompose.Network),
+					Volumes:  make(map[string]dockercompose.Volume),
+					Configs:  make(map[string]dockercompose.Config),
+					Secrets:  make(map[string]dockercompose.Secret),
+				}
+			} else {
+				// Load existing Compose file if it exists
+				loadedComposeFile, err := dockercompose.LoadComposeFile(composeFilePath)
+				if err != nil {
+					log.Error().Err(err).Str("composeFilePath", composeFilePath).Msg("Failed to load existing Compose file")
+					fmt.Printf("Error loading compose file: %v\n", err)
+					os.Exit(1)
+				}
+				composeFile = *loadedComposeFile // Dereference the pointer
+			}
+
+			// Populate the Compose file with the specified template
+			err = procedures.PopulateComposeWithTemplate(&composeFile, templateFolderPath, templateName, count, serviceNames)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to populate compose file with template")
+				fmt.Printf("Error populating compose file with template: %v\n", err)
+				os.Exit(1)
+			}
+
+			// Save the populated Compose file back to the specified path
+			err = saveComposeFile(composeFilePath, composeFile)
+			if err != nil {
+				log.Error().Err(err).Str("composeFilePath", composeFilePath).Msg("Failed to save populated Compose file")
+				fmt.Printf("Error saving populated Compose file: %v\n", err)
+				os.Exit(1)
+			}
+
+			log.Info().Str("composeFilePath", composeFilePath).Msg("Docker Compose file populated successfully")
+			fmt.Println("Docker Compose file populated successfully")
 		},
 	}
 }
 
-// createLoadEmbeddedTemplateCommand creates the command for loading an embedded template.
-func createLoadEmbeddedTemplateCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "load-template [templatePath]",
-		Short: "Load an embedded Docker Compose template",
-		Long:  "Load a Docker Compose template from the embedded files.",
-		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			templatePath := args[0]
-
-			// Load the embedded template
-			tmpl, err := dockercompose.LoadEmbeddedTemplate(templatePath)
-			if err != nil {
-				HandleError(err)
-				return
-			}
-
-			// If successfully loaded, print a success message
-			if tmpl != nil {
-				fmt.Printf("Successfully loaded embedded template from %s\n", templatePath)
-			}
-		},
+// Helper function to save a Docker Compose file.
+func saveComposeFile(filePath string, composeFile dockercompose.ComposeFile) error {
+	fileData, err := yaml.Marshal(&composeFile)
+	if err != nil {
+		return fmt.Errorf("failed to marshal compose file to YAML: %w", err)
 	}
+
+	// Write data to file
+	if err := os.WriteFile(filePath, fileData, 0644); err != nil {
+		return fmt.Errorf("failed to write compose file: %w", err)
+	}
+	return nil
+}
+
+// parseServiceNames parses service names from command-line arguments.
+func parseServiceNames(args []string, count int) map[int]string {
+	serviceNames := make(map[int]string)
+	for i, arg := range args {
+		if i < count {
+			serviceNames[i+1] = arg
+		}
+	}
+	return serviceNames
 }

@@ -70,7 +70,7 @@ func copyEmbeddedFiles(embeddedFS fs.FS, sourcePath, targetFolder string) error 
 
 // InitTemplatesFolder initializes the templates folder with embedded templates.
 func InitTemplatesFolder(folderPath string) error {
-	return InitFolder(folderPath, "services", "templates", embedfiles.EmbeddedTemplateFS)
+	return InitFolder(folderPath, "services", "services", embedfiles.EmbeddedServicesFS)
 }
 
 // InitDockerfilesFolder initializes the Dockerfiles folder with embedded Dockerfile templates.
@@ -83,7 +83,7 @@ func PopulateComposeWithTemplate(composeFile *dockercompose.ComposeFile, folderP
 	if !strings.HasSuffix(templateName, ".yaml") {
 		templateName += ".yaml"
 	}
-	templatePath := filepath.Join(folderPath, templateName)
+	templatePath := filepath.Join(folderPath, "services", templateName)
 	log.Info().Str("templateName", templateName).Int("count", count).Msg("Starting template population")
 
 	// Load and parse the template

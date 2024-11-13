@@ -2,6 +2,7 @@ package dockercompose
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"os"
 
 	"github.com/rs/zerolog/log"

@@ -43,7 +43,7 @@ func BuildCoreImageKasm(imageTag, baseImage string) error {
 
 // DeployKasmDockerImage builds, exports, and loads a Docker image on a remote node.
 // If a localTarFilePath is provided, it will use that file instead of building a new image.
-func DeployKasmDockerImage(imageTag, baseImage, dockerfilePath, targetNodePath, localTarFilePath string) error {
+func DeployKasmDockerImage(imageTag, baseImage, targetNodePath, localTarFilePath string) error {
 	var tarFilePath string
 	var err error
 

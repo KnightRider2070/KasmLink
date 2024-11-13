@@ -10,7 +10,7 @@ import (
 // LoadEmbeddedTemplate loads the embedded Docker Compose template from the embedded file system.
 func LoadEmbeddedTemplate(templatePath string) (*template.Template, error) {
 	// Check if the template path is specified; otherwise, use the default
-	defaultTemplatePath := "templates/docker-compose-template.yaml"
+	defaultTemplatePath := "services/docker-compose-template.yaml"
 	if templatePath == "" {
 		templatePath = defaultTemplatePath
 		log.Debug().Str("templatePath", templatePath).Msg("No template path provided. Using default template path")
@@ -20,7 +20,7 @@ func LoadEmbeddedTemplate(templatePath string) (*template.Template, error) {
 
 	// Attempt to read the template content from the embedded filesystem
 	log.Info().Str("templatePath", templatePath).Msg("Attempting to load embedded template")
-	templateContent, err := embedfiles.EmbeddedTemplateFS.ReadFile(templatePath)
+	templateContent, err := embedfiles.EmbeddedServicesFS.ReadFile(templatePath)
 	if err != nil {
 		log.Error().Err(err).Str("templatePath", templatePath).Msg("Failed to load embedded template. Ensure the template path is correct and the file is available in the embedded filesystem")
 		return nil, fmt.Errorf("failed to load embedded template at %s: %w", templatePath, err)

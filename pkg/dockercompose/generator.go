@@ -3,14 +3,13 @@ package dockercompose
 import (
 	"fmt"
 	"github.com/rs/zerolog/log"
+	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
-	"strings"
-	"text/template"
 )
 
-// GenerateDockerComposeFile writes the Docker Compose file according to the template and structure.
-func GenerateDockerComposeFile(tmpl *template.Template, composeFile ComposeFile, outputPath string) error {
+// GenerateDockerComposeFile writes the Docker Compose file based on the provided ComposeFile struct.
+func GenerateDockerComposeFile(composeFile ComposeFile, outputPath string) error {
 	if outputPath == "" {
 		log.Error().Msg("Output path is empty. Please provide a valid path for the Docker Compose file.")
 		return fmt.Errorf("output path cannot be empty")
@@ -26,14 +25,14 @@ func GenerateDockerComposeFile(tmpl *template.Template, composeFile ComposeFile,
 	}
 	log.Debug().Str("outputDir", outputDir).Msg("Output directory verified/created successfully")
 
-	// Render the template with the composeFile data.
-	var renderedContent strings.Builder
-	if err := tmpl.Execute(&renderedContent, composeFile); err != nil {
-		log.Error().Err(err).Msg("Failed to apply template")
-		return fmt.Errorf("failed to apply template: %w", err)
+	// Convert ComposeFile struct to YAML format
+	yamlData, err := yaml.Marshal(composeFile)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to marshal ComposeFile struct to YAML")
+		return fmt.Errorf("failed to marshal ComposeFile struct to YAML: %w", err)
 	}
 
-	// Create a temporary file in the same directory for atomic write.
+	// Create a temporary file in the same directory for atomic write
 	tempFile, err := os.CreateTemp(outputDir, "docker-compose-*.yaml")
 	if err != nil {
 		log.Error().Err(err).Str("outputDir", outputDir).Msg("Failed to create temporary file")
@@ -51,12 +50,12 @@ func GenerateDockerComposeFile(tmpl *template.Template, composeFile ComposeFile,
 	}()
 	log.Debug().Str("tempFile", tempFile.Name()).Msg("Temporary file created for atomic write")
 
-	// Write the rendered content to the temporary file.
-	if _, err := tempFile.WriteString(renderedContent.String()); err != nil {
+	// Write the YAML data to the temporary file
+	if _, err := tempFile.Write(yamlData); err != nil {
 		log.Error().Err(err).Str("tempFile", tempFile.Name()).Msg("Failed to write to temporary file")
 		return fmt.Errorf("failed to write to temporary file %s: %w", tempFile.Name(), err)
 	}
-	log.Debug().Str("tempFile", tempFile.Name()).Msg("Rendered content written to temporary file successfully")
+	log.Debug().Str("tempFile", tempFile.Name()).Msg("YAML data written to temporary file successfully")
 
 	// Close the temporary file before renaming
 	if err := tempFile.Close(); err != nil {
