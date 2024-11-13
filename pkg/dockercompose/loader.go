@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/rs/zerolog/log"
-	"gopkg.in/yaml.v2"
 )
 
 // LoadComposeFile loads the Compose configuration from a YAML file.
@@ -34,7 +33,11 @@ func LoadComposeFile(configPath string) (*ComposeFile, error) {
 		log.Error().Err(err).Str("configPath", configPath).Msg("Failed to open configuration file")
 		return nil, fmt.Errorf("failed to open configuration file %s: %w", configPath, err)
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil {
+			err = fmt.Errorf("failed to close configuration file: %v", cerr)
+		}
+	}()
 
 	var composeFile ComposeFile
 	decoder := yaml.NewDecoder(file)

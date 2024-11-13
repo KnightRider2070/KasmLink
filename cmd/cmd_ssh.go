@@ -50,7 +50,11 @@ If connection is successful, the user can use the same client to execute command
 				HandleError(err)
 				return
 			}
-			defer client.Close()
+			defer func() {
+				if err := client.Close(); err != nil {
+					log.Error().Err(err).Msg("Failed to close SSH client")
+				}
+			}()
 
 			log.Info().Msg("SSH connection established successfully")
 		},
@@ -79,7 +83,11 @@ Provide username, password, node address, known_hosts file, and the command to e
 				HandleError(err)
 				return
 			}
-			defer client.Close()
+			defer func() {
+				if err := client.Close(); err != nil {
+					log.Error().Err(err).Msg("Failed to close SSH client")
+				}
+			}()
 
 			command := args[4]
 			output, err := shadowssh.ExecuteCommand(client, command)
@@ -116,7 +124,11 @@ Provide username, password, node address, known_hosts file, the command to execu
 				HandleError(err)
 				return
 			}
-			defer client.Close()
+			defer func() {
+				if err := client.Close(); err != nil {
+					log.Error().Err(err).Msg("Failed to close SSH client")
+				}
+			}()
 
 			command := args[4]
 			logDuration := ParseDuration(args[5], 30*time.Second)

@@ -79,7 +79,11 @@ func ShadowExecuteCommandWithOutput(client *ssh.Client, command string, logDurat
 	if err != nil {
 		return "", fmt.Errorf("failed to create SSH session: %v", err)
 	}
-	defer session.Close()
+	defer func() {
+		if err := session.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close SSH session")
+		}
+	}()
 
 	// Get pipes for standard output and error.
 	stdoutPipe, err := session.StdoutPipe()
@@ -150,7 +154,11 @@ func ExecuteCommand(client *ssh.Client, command string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create SSH session: %v", err)
 	}
-	defer session.Close()
+	defer func() {
+		if err := session.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close SSH session")
+		}
+	}()
 
 	// Capture both stdout and stderr
 	var stdoutBuf, stderrBuf bytes.Buffer

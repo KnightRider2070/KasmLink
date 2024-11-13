@@ -21,7 +21,7 @@ func HandleError(err error) {
 	}
 }
 
-// Helper function to parse string to int with a fallback default.
+// ParseInt helper function to parse string to int with a fallback default.
 func ParseInt(arg string, fallback int) int {
 	parsed, err := strconv.Atoi(arg)
 	if err != nil {
@@ -31,7 +31,7 @@ func ParseInt(arg string, fallback int) int {
 	return parsed
 }
 
-// Helper function to parse string to time.Duration with a fallback default.
+// ParseDuration helper function to parse string to time.Duration with a fallback default.
 func ParseDuration(arg string, fallback time.Duration) time.Duration {
 	parsed, err := time.ParseDuration(arg)
 	if err != nil {

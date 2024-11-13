@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	urlRegex        = regexp.MustCompile(`https?://[^\s]+`)
-	variablePattern = regexp.MustCompile(`(?m)^\s*%s\s*=\s*['"]?([^'"\s]+)['"]?`)
+	urlRegex           = regexp.MustCompile(`https?://[^\s]+`)
+	variablePatternStr = `(?m)^\s*%s\s*=\s*['"]?([^'"\s]+)['"]?`
 )
 
 // createShadowHubClient creates a GitHub client with an optional token for authentication.
@@ -64,7 +64,7 @@ func extractURLs(scriptContent string) []string {
 func extractVariables(scriptContent string, variableNames []string) map[string]string {
 	variableValues := make(map[string]string)
 	for _, variableName := range variableNames {
-		pattern := fmt.Sprintf(`(?m)^\s*%s\s*=\s*['"]?([^'"\s]+)['"]?`, variableName)
+		pattern := fmt.Sprintf(variablePatternStr, variableName)
 		re := regexp.MustCompile(pattern)
 		match := re.FindStringSubmatch(scriptContent)
 		if len(match) > 1 {

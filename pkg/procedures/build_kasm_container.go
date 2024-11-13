@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// buildCoreImageKasm orchestrates the Docker image build using the embedded Dockerfile and base image.
+// BuildCoreImageKasm orchestrates the Docker image build using the embedded Dockerfile and base image.
 func BuildCoreImageKasm(imageTag, baseImage string) error {
 	if baseImage == "" {
 		baseImage = "opensuse/leap:15.5"
@@ -55,7 +55,11 @@ func DeployKasmDockerImage(imageTag, baseImage, dockerfilePath, targetNodePath s
 	if err != nil {
 		return fmt.Errorf("failed to export Docker image to tar: %v", err)
 	}
-	defer os.Remove(tarFilePath) // Cleanup tar file after deployment
+	defer func() {
+		if err := os.Remove(tarFilePath); err != nil {
+			log.Error().Err(err).Msg("Failed to remove tar file")
+		}
+	}()
 
 	// Step 3: Establish SSH connection to target node
 	sshConfig := &shadowssh.SSHConfig{
@@ -70,7 +74,11 @@ func DeployKasmDockerImage(imageTag, baseImage, dockerfilePath, targetNodePath s
 	if err != nil {
 		return fmt.Errorf("failed to establish SSH connection: %v", err)
 	}
-	defer sshClient.Close()
+	defer func() {
+		if err := sshClient.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close SSH client")
+		}
+	}()
 
 	// Step 4: Copy and load the Docker image on the remote node
 	err = ImportDockerImageToRemoteNode(sshConfig.Username, sshConfig.Password, sshConfig.NodeAddress, tarFilePath, targetNodePath)
@@ -97,7 +105,11 @@ func DeployComposeFile(composeFilePath, targetNodePath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to establish SSH connection: %v", err)
 	}
-	defer sshClient.Close()
+	defer func() {
+		if err := sshClient.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close SSH client")
+		}
+	}()
 
 	// Step 2: Copy compose file onto node
 	log.Info().

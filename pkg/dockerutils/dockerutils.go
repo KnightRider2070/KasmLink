@@ -15,12 +15,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 const (
-	retryCount    = 3
-	retryDelay    = 2 * time.Second
 	tarBufferSize = 10 * 1024 * 1024 // 10MB buffer size for tar creation
 )
 
@@ -28,7 +25,11 @@ const (
 func CreateTarWithContext(buildContextDir string) (io.Reader, error) {
 	buffer := bytes.NewBuffer(make([]byte, 0, tarBufferSize))
 	tarWriter := tar.NewWriter(buffer)
-	defer tarWriter.Close()
+	defer func() {
+		if err := tarWriter.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close tar writer")
+		}
+	}()
 
 	err := filepath.Walk(buildContextDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -47,7 +48,11 @@ func CreateTarWithContext(buildContextDir string) (io.Reader, error) {
 			if err != nil {
 				return err
 			}
-			defer file.Close()
+			defer func() {
+				if cerr := file.Close(); cerr != nil {
+					err = fmt.Errorf("failed to close %s file : %v", path, cerr)
+				}
+			}()
 			if _, err := io.Copy(tarWriter, file); err != nil {
 				return err
 			}
@@ -110,7 +115,11 @@ func CreateTarFromEmbedded(embedFS embed.FS, srcDir string) (io.Reader, error) {
 	log.Debug().Str("srcDir", srcDir).Msg("Creating tar archive from embedded files")
 	buf := bytes.NewBuffer(make([]byte, 0, tarBufferSize))
 	tw := tar.NewWriter(buf)
-	defer tw.Close()
+	defer func() {
+		if err := tw.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close tar writer")
+		}
+	}()
 
 	// Walk through the embedded filesystem and add each file to the tar archive
 	err := fs.WalkDir(embedFS, srcDir, func(path string, d fs.DirEntry, err error) error {
@@ -130,7 +139,11 @@ func CreateTarFromEmbedded(embedFS embed.FS, srcDir string) (io.Reader, error) {
 			log.Error().Err(err).Str("path", path).Msg("Could not open embedded file")
 			return fmt.Errorf("could not open embedded file: %v", err)
 		}
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				log.Error().Err(err).Msg("Failed to close file")
+			}
+		}()
 
 		// Get file info for the tar header
 		info, err := d.Info()
@@ -182,7 +195,11 @@ func ExportImageToTar(cli *client.Client, imageTag string) (string, error) {
 		log.Error().Err(err).Str("imageTag", imageTag).Msg("Failed to export Docker image")
 		return "", fmt.Errorf("failed to export Docker image: %v", err)
 	}
-	defer imageReader.Close()
+	defer func() {
+		if err := imageReader.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close image reader")
+		}
+	}()
 
 	// Define the tar file path in a temporary directory
 	tarFilePath := filepath.Join(os.TempDir(), fmt.Sprintf("%s-image.tar", imageTag))
@@ -193,7 +210,11 @@ func ExportImageToTar(cli *client.Client, imageTag string) (string, error) {
 		log.Error().Err(err).Str("tarFilePath", tarFilePath).Msg("Could not create tar file")
 		return "", fmt.Errorf("could not create tar file: %v", err)
 	}
-	defer tarFile.Close()
+	defer func() {
+		if err := tarFile.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close tar file")
+		}
+	}()
 
 	// Copy the image stream to the tar file
 	if _, err = io.Copy(tarFile, imageReader); err != nil {
@@ -259,7 +280,11 @@ func BuildDockerImage(cli *client.Client, imageTag, dockerfilePath string, build
 		log.Error().Err(err).Str("imageTag", imageTag).Msg("Failed to build Docker image")
 		return fmt.Errorf("failed to build Docker image: %v", err)
 	}
-	defer imageBuildResponse.Body.Close()
+	defer func() {
+		if err := imageBuildResponse.Body.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close image build response body")
+		}
+	}()
 
 	if err := PrintBuildLogs(imageBuildResponse.Body); err != nil {
 		log.Error().Err(err).Str("imageTag", imageTag).Msg("Error occurred during Docker build logs processing")

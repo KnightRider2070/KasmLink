@@ -6,7 +6,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// RequestKasmSession requests a new Kasm session.
+// CreateUser creates a KASM user
 func (api *KasmAPI) CreateUser(user TargetUser) (*UserResponse, error) {
 	url := fmt.Sprintf("%s/api/public/create_user", api.BaseURL)
 	log.Info().Str("url", url).Str("user", user.Username).Msg("Creating new user")

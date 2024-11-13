@@ -51,7 +51,11 @@ func createCreateTarWithContextCommand() *cobra.Command {
 				HandleError(err)
 				return
 			}
-			defer file.Close()
+			defer func() {
+				if cerr := file.Close(); cerr != nil {
+					err = fmt.Errorf("failed to close output file: %v", cerr)
+				}
+			}()
 
 			if _, err := io.Copy(file, tarReader); err != nil {
 				HandleError(err)

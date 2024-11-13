@@ -2,6 +2,7 @@ package dockercli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"os/exec"
@@ -52,7 +53,7 @@ func executeDockerCommand(ctx context.Context, retries int, command string, args
 			output, err = cmd.CombinedOutput()
 			duration := time.Since(startTime)
 
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				log.Error().
 					Dur("duration", duration).
 					Int("attempt", attempt).

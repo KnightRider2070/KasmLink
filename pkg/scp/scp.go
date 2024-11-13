@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"io"
-	"kasmlink/pkg/ssh" // Using the shadowssh package for enhanced SSH capabilities
+	shadowssh "kasmlink/pkg/ssh"
 	"os"
 	"path/filepath"
 	"time"
@@ -47,19 +47,27 @@ func ShadowCopyFile(localFilePath, remoteDir string) error {
 // performCopy performs the actual file copy to the remote node via SSH.
 func performCopy(sshConfig *shadowssh.SSHConfig, localFilePath, remoteDir string) error {
 	// Establish SSH connection
-	client, err := shadowssh.NewSSHClient(sshConfig)
+	sshClient, err := shadowssh.NewSSHClient(sshConfig)
 	if err != nil {
 		return fmt.Errorf("failed to establish SSH connection: %w", err)
 	}
-	defer client.Close()
+	defer func() {
+		if err := sshClient.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close SSH client")
+		}
+	}()
 	log.Debug().Msg("SSH connection established")
 
 	// Create a new session for SCP
-	session, err := client.NewSession()
+	session, err := sshClient.NewSession()
 	if err != nil {
 		return fmt.Errorf("failed to create SSH session: %w", err)
 	}
-	defer session.Close()
+	defer func() {
+		if err := session.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close SSH session")
+		}
+	}()
 	log.Debug().Msg("SSH session created")
 
 	// Open the local file
@@ -67,7 +75,11 @@ func performCopy(sshConfig *shadowssh.SSHConfig, localFilePath, remoteDir string
 	if err != nil {
 		return fmt.Errorf("failed to open local file: %w", err)
 	}
-	defer localFile.Close()
+	defer func() {
+		if cerr := localFile.Close(); cerr != nil {
+			err = fmt.Errorf("failed to close local file: %v", cerr)
+		}
+	}()
 
 	// Get the file info (to obtain size and permissions)
 	fileInfo, err := localFile.Stat()
@@ -88,7 +100,11 @@ func performCopy(sshConfig *shadowssh.SSHConfig, localFilePath, remoteDir string
 	if err != nil {
 		return fmt.Errorf("failed to set up stdin for SCP: %w", err)
 	}
-	defer stdinPipe.Close()
+	defer func() {
+		if err := stdinPipe.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close stdin pipe")
+		}
+	}()
 
 	// Start the SCP session
 	if err := session.Start(command); err != nil {
@@ -97,8 +113,13 @@ func performCopy(sshConfig *shadowssh.SSHConfig, localFilePath, remoteDir string
 	log.Info().Str("command", command).Msg("SCP command started on remote node")
 
 	// Send the file metadata (size and permissions)
-	fmt.Fprintf(stdinPipe, "C%#o %d %s\n", fileInfo.Mode().Perm(), fileInfo.Size(), targetFileName)
-	log.Debug().Str("target_file_name", targetFileName).Msg("Sent file metadata")
+	defer func() {
+		if _, err := fmt.Fprintf(stdinPipe, "C%#o %d %s\n", fileInfo.Mode().Perm(), fileInfo.Size(), targetFileName); err != nil {
+			log.Error().Err(err).Msg("Failed to send file metadata")
+		} else {
+			log.Debug().Str("target_file_name", targetFileName).Msg("Sent file metadata")
+		}
+	}()
 
 	// Send the file contents with progress logging
 	buffer := make([]byte, 4096)
@@ -126,8 +147,13 @@ func performCopy(sshConfig *shadowssh.SSHConfig, localFilePath, remoteDir string
 	}
 
 	// Signal EOF to the SCP session and close stdin
-	fmt.Fprint(stdinPipe, "\x00")
-	log.Debug().Msg("EOF signal sent")
+	defer func() {
+		if _, err := fmt.Fprint(stdinPipe, "\x00"); err != nil {
+			log.Error().Err(err).Msg("Failed to send EOF signal")
+		} else {
+			log.Debug().Msg("EOF signal sent")
+		}
+	}()
 
 	// Wait for the session to finish
 	if err := session.Wait(); err != nil {

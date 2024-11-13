@@ -38,18 +38,21 @@ func ImportDockerImageToRemoteNode(username, password, host, localTarFilePath, r
 	// Step 2: Establish SSH connection to target node
 	sshConfig := shadowssh.NewSSHConfigFromFlags()
 
-	client, err := shadowssh.NewSSHClient(sshConfig)
+	sshClient, err := shadowssh.NewSSHClient(sshConfig)
 	if err != nil {
 		return fmt.Errorf("failed to establish SSH connection: %v", err)
 	}
-	defer client.Close()
-
+	defer func() {
+		if err := sshClient.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close SSH client")
+		}
+	}()
 	// Step 3: Execute the Docker import command on the remote node via SSH with retry mechanism.
 	remoteTarFilePath := filepath.Join(remoteDir, filepath.Base(localTarFilePath))
 	checkCommand := fmt.Sprintf("ls %s && docker load -i %s", remoteTarFilePath, remoteTarFilePath)
 
 	if err := retryOperation(retryCount, retryDelay, func() error {
-		_, execErr := shadowssh.ExecuteCommand(client, checkCommand)
+		_, execErr := shadowssh.ExecuteCommand(sshClient, checkCommand)
 		return execErr
 	}, "execute Docker load command on remote node"); err != nil {
 		return err
@@ -59,7 +62,7 @@ func ImportDockerImageToRemoteNode(username, password, host, localTarFilePath, r
 	deleteCommand := fmt.Sprintf("rm -rf %s", remoteTarFilePath)
 
 	if err := retryOperation(retryCount, retryDelay, func() error {
-		_, execErr := shadowssh.ExecuteCommand(client, deleteCommand)
+		_, execErr := shadowssh.ExecuteCommand(sshClient, deleteCommand)
 		return execErr
 	}, "remove tar file from remote node"); err != nil {
 		return err

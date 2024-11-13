@@ -3,7 +3,6 @@ package dockercompose
 import (
 	"fmt"
 	"github.com/rs/zerolog/log"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,14 +34,20 @@ func GenerateDockerComposeFile(tmpl *template.Template, composeFile ComposeFile,
 	}
 
 	// Create a temporary file in the same directory for atomic write.
-	tempFile, err := ioutil.TempFile(outputDir, "docker-compose-*.yaml")
+	tempFile, err := os.CreateTemp(outputDir, "docker-compose-*.yaml")
 	if err != nil {
 		log.Error().Err(err).Str("outputDir", outputDir).Msg("Failed to create temporary file")
 		return fmt.Errorf("failed to create temporary file in %s: %w", outputDir, err)
 	}
 	defer func() {
-		tempFile.Close()
-		os.Remove(tempFile.Name()) // Ensure the temp file is removed in case of error
+		if cerr := tempFile.Close(); cerr != nil {
+			err = fmt.Errorf("failed to close temp file: %v", cerr)
+		}
+		defer func() {
+			if err := os.Remove(tempFile.Name()); err != nil {
+				log.Error().Err(err).Msg("Failed to remove temporary file")
+			}
+		}()
 	}()
 	log.Debug().Str("tempFile", tempFile.Name()).Msg("Temporary file created for atomic write")
 

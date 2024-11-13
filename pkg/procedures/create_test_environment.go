@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/rs/zerolog/log"
-	api "kasmlink/pkg/api"
+	"kasmlink/pkg/api"
 	"kasmlink/pkg/dockercli"
 	shadowssh "kasmlink/pkg/ssh"
 	"os"
@@ -24,7 +24,11 @@ func StartTestSession(imageTagCore, imageTagFrontend, composeFilePath, remoteNod
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish SSH connection: %v", err)
 	}
-	defer sshClient.Close()
+	defer func() {
+		if err := sshClient.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close SSH client")
+		}
+	}()
 	log.Info().Msg("SSH connection established successfully")
 
 	// Step 2: Check that the latest core image is available
@@ -47,7 +51,11 @@ func StartTestSession(imageTagCore, imageTagFrontend, composeFilePath, remoteNod
 		if err != nil {
 			return nil, fmt.Errorf("failed to export core image as tar: %v", err)
 		}
-		defer os.Remove(tarFilePath)
+		defer func() {
+			if err := os.Remove(tarFilePath); err != nil {
+				log.Error().Err(err).Msg("Failed to remove tar file")
+			}
+		}()
 
 		// Upload tar file to the remote node
 		if err := ImportDockerImageToRemoteNode(sshConfig.Username, sshConfig.Password, sshConfig.NodeAddress, tarFilePath, remoteNodePath); err != nil {

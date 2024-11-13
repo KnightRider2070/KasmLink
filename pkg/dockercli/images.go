@@ -132,7 +132,12 @@ func ExportImageToTar(ctx context.Context, retries int, imageName, outputFile st
 		log.Error().Err(err).Str("image_name", imageName).Msg("Failed to save Docker image")
 		return "", fmt.Errorf("could not save Docker image: %w", err)
 	}
-	defer imageReader.Close()
+
+	defer func() {
+		if err := imageReader.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close image reader")
+		}
+	}()
 
 	// Determine the output file path
 	if outputFile == "" {
@@ -145,7 +150,11 @@ func ExportImageToTar(ctx context.Context, retries int, imageName, outputFile st
 		log.Error().Err(err).Str("output_file", outputFile).Msg("Failed to create tar file")
 		return "", fmt.Errorf("could not create tar file: %w", err)
 	}
-	defer outFile.Close()
+	defer func() {
+		if cerr := outFile.Close(); cerr != nil {
+			err = fmt.Errorf("failed to close tar file: %v", cerr)
+		}
+	}()
 
 	// Write the image data to the tar file
 	written, err := io.Copy(outFile, imageReader)
@@ -177,14 +186,23 @@ func ImportImageFromTar(ctx context.Context, retries int, tarFilePath string) er
 		log.Error().Err(err).Str("tar_file_path", tarFilePath).Msg("Failed to open tar file")
 		return fmt.Errorf("could not open tar file: %w", err)
 	}
-	defer tarFile.Close()
+	defer func() {
+		if err := tarFile.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close tar file")
+		}
+	}()
 
 	imageLoadResponse, err := cli.ImageLoad(context.Background(), tarFile, true)
 	if err != nil {
 		log.Error().Err(err).Str("tar_file_path", tarFilePath).Msg("Failed to load Docker image from tar")
 		return fmt.Errorf("could not load Docker image from tar: %w", err)
 	}
-	defer imageLoadResponse.Body.Close()
+
+	defer func() {
+		if err := imageLoadResponse.Body.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close image load response body")
+		}
+	}()
 
 	_, err = io.Copy(os.Stdout, imageLoadResponse.Body)
 	if err != nil {

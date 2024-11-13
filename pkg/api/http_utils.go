@@ -16,7 +16,10 @@ import (
 func AskUserToSkipTLS() bool {
 	var input string
 	fmt.Print("Do you want to skip TLS certificate verification? (y/N): ")
-	fmt.Scanln(&input)
+	if _, err := fmt.Scanln(&input); err != nil {
+		log.Error().Err(err).Msg("Failed to read user input")
+		return false
+	}
 	skipTLS := input == "y" || input == "Y"
 	if skipTLS {
 		log.Warn().Msg("User chose to skip TLS certificate verification.")
@@ -49,7 +52,11 @@ func CreateHTTPClient(skipTLSVerification bool) *http.Client {
 
 // HandleResponse reads the response body and checks for errors or unexpected status codes
 func HandleResponse(resp *http.Response, expectedStatusCode int) ([]byte, error) {
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Error().Err(err).Str("url", resp.Request.URL.String()).Msg("Failed to close response body")
+		}
+	}()
 
 	if resp.StatusCode != expectedStatusCode {
 		log.Warn().Str("url", resp.Request.URL.String()).Int("status", resp.StatusCode).Msg("Unexpected response status")
@@ -60,6 +67,11 @@ func HandleResponse(resp *http.Response, expectedStatusCode int) ([]byte, error)
 	if err != nil {
 		log.Error().Err(err).Str("url", resp.Request.URL.String()).Msg("Failed to read response body")
 		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	if len(body) == 0 {
+		log.Warn().Str("url", resp.Request.URL.String()).Msg("Response body is empty")
+		return nil, fmt.Errorf("response body is empty")
 	}
 
 	log.Info().Str("url", resp.Request.URL.String()).Msg("Request succeeded")
