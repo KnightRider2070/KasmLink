@@ -49,6 +49,7 @@ func main() {
 	}
 
 	// Set color preference based on the DEBUG environment variable
+	//For windows use $env:LOGLEVEL="debug"
 	if os.Getenv("DEBUG") != "" {
 		noColor = true
 	}

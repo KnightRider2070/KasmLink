@@ -1,16 +1,15 @@
 package procedures
 
 import (
+	"errors"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"io/fs"
 	embedfiles "kasmlink/embedded"
 	"kasmlink/pkg/dockercompose"
 	"os"
 	"path/filepath"
 	"strings"
-	"text/template"
-
-	"github.com/rs/zerolog/log"
 )
 
 // InitFolder initializes a specified folder by copying embedded templates or Dockerfiles.
@@ -78,168 +77,117 @@ func InitDockerfilesFolder(folderPath string) error {
 	return InitFolder(folderPath, "dockerfiles", "dockerfiles", embedfiles.EmbeddedDockerImagesDirectory)
 }
 
-// PopulateComposeWithTemplate populates a Docker Compose file with instances of a specified template.
-func PopulateComposeWithTemplate(composeFile *dockercompose.ComposeFile, folderPath, templateName string, count int, serviceNames map[int]string) error {
-	if !strings.HasSuffix(templateName, ".yaml") {
-		templateName += ".yaml"
-	}
-	templatePath := filepath.Join(folderPath, "services", templateName)
-	log.Info().Str("templateName", templateName).Int("count", count).Msg("Starting template population")
-
-	// Load and parse the template
-	tmpl, err := loadTemplate(templatePath, templateName)
-	if err != nil {
-		return fmt.Errorf("error loading template: %w", err)
+// MergeComposeFiles merges two ComposeFile objects into one.
+func MergeComposeFiles(file1, file2 dockercompose.ComposeFile) (dockercompose.ComposeFile, error) {
+	// Check if versions are compatible
+	if file1.Version != file2.Version {
+		return dockercompose.ComposeFile{}, errors.New("incompatible compose file versions")
 	}
 
-	// Ensure networks and volumes are initialized in the Compose file
-	ensureNetworksAndVolumes(composeFile)
+	merged := dockercompose.ComposeFile{
+		Version:  file1.Version,
+		Services: make(map[string]dockercompose.Service),
+		Networks: make(map[string]dockercompose.Network),
+		Volumes:  make(map[string]dockercompose.Volume),
+		Configs:  make(map[string]dockercompose.Config),
+		Secrets:  make(map[string]dockercompose.Secret),
+	}
 
-	// Loop through each instance to create services
-	for i := 1; i <= count; i++ {
-		serviceName := generateServiceName(serviceNames, i, templateName)
-		log.Debug().Str("serviceName", serviceName).Msg("Creating service instance")
-
-		// Define and render the service structure
-		service := createServiceConfig(serviceName)
-		if err := renderServiceToCompose(tmpl, service, serviceName, composeFile); err != nil {
-			log.Error().Err(err).Str("serviceName", serviceName).Msg("Failed to render service to compose file")
-			return fmt.Errorf("failed to render service %s to compose file: %w", serviceName, err)
+	// Merge services
+	for name, service := range file1.Services {
+		merged.Services[name] = service
+	}
+	for name, service := range file2.Services {
+		if _, exists := merged.Services[name]; exists {
+			return dockercompose.ComposeFile{}, fmt.Errorf("service conflict: %s exists in both files", name)
 		}
+		merged.Services[name] = service
 	}
 
-	log.Info().Str("templateName", templateName).Int("count", count).Msg("Template population completed successfully")
+	// Merge networks
+	for name, network := range file1.Networks {
+		merged.Networks[name] = network
+	}
+	for name, network := range file2.Networks {
+		if _, exists := merged.Networks[name]; exists {
+			return dockercompose.ComposeFile{}, fmt.Errorf("network conflict: %s exists in both files", name)
+		}
+		merged.Networks[name] = network
+	}
+
+	// Merge volumes
+	for name, volume := range file1.Volumes {
+		merged.Volumes[name] = volume
+	}
+	for name, volume := range file2.Volumes {
+		if _, exists := merged.Volumes[name]; exists {
+			return dockercompose.ComposeFile{}, fmt.Errorf("volume conflict: %s exists in both files", name)
+		}
+		merged.Volumes[name] = volume
+	}
+
+	// Merge configs
+	for name, config := range file1.Configs {
+		merged.Configs[name] = config
+	}
+	for name, config := range file2.Configs {
+		if _, exists := merged.Configs[name]; exists {
+			return dockercompose.ComposeFile{}, fmt.Errorf("config conflict: %s exists in both files", name)
+		}
+		merged.Configs[name] = config
+	}
+
+	// Merge secrets
+	for name, secret := range file1.Secrets {
+		merged.Secrets[name] = secret
+	}
+	for name, secret := range file2.Secrets {
+		if _, exists := merged.Secrets[name]; exists {
+			return dockercompose.ComposeFile{}, fmt.Errorf("secret conflict: %s exists in both files", name)
+		}
+		merged.Secrets[name] = secret
+	}
+
+	return merged, nil
+}
+
+// CreateServiceReplicas creates replicas of a service with modified names in a Compose file.
+func CreateServiceReplicas(composeFile *dockercompose.ComposeFile, serviceName string, replicas int, inputNames []string) error {
+	// Validate that the service exists in the compose file
+	originalService, exists := composeFile.Services[serviceName]
+	if !exists {
+		return fmt.Errorf("service %s does not exist in the compose file", serviceName)
+	}
+
+	// Validate input names
+	if len(inputNames) == 0 {
+		return fmt.Errorf("no input names provided")
+	}
+
+	// Generate names for replicas
+	replicaNames := make([]string, replicas)
+	if len(inputNames) == 1 {
+		// If only one name is provided, generate names using name-i format
+		baseName := inputNames[0]
+		for i := 0; i < replicas; i++ {
+			replicaNames[i] = fmt.Sprintf("%s-%d", baseName, i+1)
+		}
+	} else if len(inputNames) == replicas {
+		// If enough names are provided, use them directly
+		copy(replicaNames, inputNames)
+	} else {
+		return fmt.Errorf("number of input names (%d) does not match the number of replicas (%d)", len(inputNames), replicas)
+	}
+
+	// Create replicas in the compose file
+	for _, replicaName := range replicaNames {
+		newService := originalService
+		newService.ContainerName = replicaName // Update the container name
+		composeFile.Services[replicaName] = newService
+	}
+
+	// Remove the original service
+	delete(composeFile.Services, serviceName)
+
 	return nil
-}
-
-// ensureNetworksAndVolumes adds default networks and volumes if missing.
-func ensureNetworksAndVolumes(composeFile *dockercompose.ComposeFile) {
-	if composeFile.Networks == nil {
-		composeFile.Networks = make(map[string]dockercompose.Network)
-	}
-	if composeFile.Volumes == nil {
-		composeFile.Volumes = make(map[string]dockercompose.Volume)
-	}
-
-	// Add example network
-	if _, exists := composeFile.Networks["example_network"]; !exists {
-		composeFile.Networks["example_network"] = dockercompose.Network{
-			Driver: "bridge",
-			DriverOpts: map[string]string{
-				"subnet": "10.5.0.0/16",
-			},
-		}
-		log.Info().Str("network", "example_network").Msg("Default network added to ComposeFile")
-	}
-
-	// Add example volume
-	if _, exists := composeFile.Volumes["nfs_data"]; !exists {
-		composeFile.Volumes["nfs_data"] = dockercompose.Volume{
-			Driver: "local",
-			DriverOpts: map[string]string{
-				"type":   "none",
-				"device": "/path/to/host/directory",
-				"o":      "bind",
-			},
-		}
-		log.Info().Str("volume", "nfs_data").Msg("Default volume added to ComposeFile")
-	}
-}
-
-// loadTemplate loads and parses the specified template file.
-func loadTemplate(templatePath, templateName string) (*template.Template, error) {
-	tmplContent, err := os.ReadFile(templatePath)
-	if err != nil {
-		log.Error().Err(err).Str("templatePath", templatePath).Msg("Failed to load template content")
-		return nil, fmt.Errorf("failed to load template %s: %w", templateName, err)
-	}
-	tmpl, err := template.New(templateName).Parse(string(tmplContent))
-	if err != nil {
-		log.Error().Err(err).Str("templateName", templateName).Msg("Failed to parse template")
-		return nil, fmt.Errorf("failed to parse template %s: %w", templateName, err)
-	}
-	log.Info().Str("templateName", templateName).Msg("Template loaded and parsed successfully")
-	return tmpl, nil
-}
-
-// generateServiceName generates a service name based on the provided name or template name.
-func generateServiceName(serviceNames map[int]string, index int, templateName string) string {
-	if name, exists := serviceNames[index]; exists && name != "" {
-		return name
-	}
-	return fmt.Sprintf("%s-%d", strings.TrimSuffix(templateName, ".yaml"), index)
-}
-
-// createServiceConfig defines a new service configuration.
-func createServiceConfig(serviceName string) dockercompose.Service {
-	log.Debug().Str("serviceName", serviceName).Msg("Creating service configuration")
-	return dockercompose.Service{
-		ContainerName: fmt.Sprintf("%s_container", serviceName),
-		Build: &dockercompose.BuildConfig{
-			Context:    "./path/to/context",
-			Dockerfile: "Dockerfile",
-			Args: map[string]string{
-				"ARG1": "value1",
-				"ARG2": "value2",
-			},
-		},
-		Healthcheck: &dockercompose.Healthcheck{
-			Test:     []string{"CMD-SHELL", "echo 'healthy'"},
-			Interval: "30s",
-			Timeout:  "10s",
-			Retries:  3,
-		},
-		Logging: &dockercompose.Logging{
-			Driver: "json-file",
-			Options: map[string]string{
-				"max-size": "10m",
-				"max-file": "3",
-			},
-		},
-		RestartPolicy: "on-failure",
-		Volumes:       []string{"nfs_data:/data"},
-		NetworkConfig: dockercompose.NetworkConfig{
-			Networks: []string{"example_network"},
-		},
-		Tty:     false,
-		Command: []string{"echo", "Hello World"},
-	}
-}
-
-// renderServiceToCompose renders the service template and adds it to the Compose file.
-func renderServiceToCompose(tmpl *template.Template, service dockercompose.Service, serviceName string, composeFile *dockercompose.ComposeFile) error {
-	var renderedService strings.Builder
-	if err := tmpl.Execute(&renderedService, service); err != nil {
-		log.Error().Err(err).Str("serviceName", serviceName).Msg("Failed to apply template")
-		return fmt.Errorf("failed to apply template for service %s: %w", serviceName, err)
-	}
-
-	// Merge volumes and networks if already present
-	existingService, exists := composeFile.Services[serviceName]
-	if exists {
-		// Merge volumes
-		service.Volumes = mergeStringSlices(existingService.Volumes, service.Volumes)
-		// Merge networks
-		service.NetworkConfig.Networks = mergeStringSlices(existingService.NetworkConfig.Networks, service.NetworkConfig.Networks)
-	}
-
-	composeFile.Services[serviceName] = service
-	log.Info().Str("serviceName", serviceName).Msg("Service added to ComposeFile successfully")
-	return nil
-}
-
-// mergeStringSlices merges two slices of strings, avoiding duplicates.
-func mergeStringSlices(slice1, slice2 []string) []string {
-	set := make(map[string]struct{})
-	for _, v := range slice1 {
-		set[v] = struct{}{}
-	}
-	for _, v := range slice2 {
-		set[v] = struct{}{}
-	}
-	result := make([]string, 0, len(set))
-	for key := range set {
-		result = append(result, key)
-	}
-	return result
 }

@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 	"kasmlink/pkg/dockercompose"
-	"kasmlink/pkg/procedures"
 	"os"
 	"strconv"
 )
@@ -51,13 +49,24 @@ the count of service instances to create, and optional service names for seriali
 			// Parse optional service names
 			serviceNames := parseServiceNames(args[4:], count)
 
-			// Load or initialize the ComposeFile struct
-			var composeFile dockercompose.ComposeFile
-			if _, err := os.Stat(composeFilePath); os.IsNotExist(err) {
-				log.Info().Str("composeFilePath", composeFilePath).Msg("Compose file does not exist, creating a new one")
-				// Initialize a new empty compose file structure
+			// Create serviceFilePath
+			serviceFilePath := fmt.Sprintf("%s/%s.yaml", templateFolderPath, templateName)
+			// Echo service file struct after parsing
+			serviceComposeFile := dockercompose.ComposeFile{}
+			serviceComposeFilePtr, err := dockercompose.LoadComposeFile(serviceFilePath)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to load compose file")
+				os.Exit(1)
+			}
+			serviceComposeFile = *serviceComposeFilePtr
+
+			// Load the output compose file if present otherwise create a new one
+			composeFile := dockercompose.ComposeFile{}
+			composeFilePtr, err := dockercompose.LoadComposeFile(composeFilePath)
+			if err != nil {
+				log.Warn().Str("path", composeFilePath).Msg("Compose file does not exist, creating a new one")
 				composeFile = dockercompose.ComposeFile{
-					Version:  "3.8",
+					Version:  "3.8", // Set default version or any other default values
 					Services: make(map[string]dockercompose.Service),
 					Networks: make(map[string]dockercompose.Network),
 					Volumes:  make(map[string]dockercompose.Volume),
@@ -65,59 +74,36 @@ the count of service instances to create, and optional service names for seriali
 					Secrets:  make(map[string]dockercompose.Secret),
 				}
 			} else {
-				// Load existing Compose file if it exists
-				loadedComposeFile, err := dockercompose.LoadComposeFile(composeFilePath)
-				if err != nil {
-					log.Error().Err(err).Str("composeFilePath", composeFilePath).Msg("Failed to load existing Compose file")
-					fmt.Printf("Error loading compose file: %v\n", err)
-					os.Exit(1)
-				}
-				composeFile = *loadedComposeFile // Dereference the pointer
+				composeFile = *composeFilePtr
 			}
 
-			// Populate the Compose file with the specified template
-			err = procedures.PopulateComposeWithTemplate(&composeFile, templateFolderPath, templateName, count, serviceNames)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to populate compose file with template")
-				fmt.Printf("Error populating compose file with template: %v\n", err)
-				os.Exit(1)
-			}
+			// Use composeFile in subsequent code
+			log.Debug().Interface("composeFile", composeFile).Msg("Loaded compose file")
 
-			// Save the populated Compose file back to the specified path
-			err = saveComposeFile(composeFilePath, composeFile)
-			if err != nil {
-				log.Error().Err(err).Str("composeFilePath", composeFilePath).Msg("Failed to save populated Compose file")
-				fmt.Printf("Error saving populated Compose file: %v\n", err)
-				os.Exit(1)
-			}
-
-			log.Info().Str("composeFilePath", composeFilePath).Msg("Docker Compose file populated successfully")
-			fmt.Println("Docker Compose file populated successfully")
+			log.Info().Interface("composeFilePath", composeFilePath).Msg("Populating compose file with template")
+			log.Info().Interface("templateFolderPath", templateFolderPath).Msg("Populating compose file with template")
+			log.Info().Interface("templateName", templateName).Msg("Populating compose file with template")
+			log.Info().Int("count", count).Msg("Populating compose file with template")
+			log.Info().Interface("serviceNames", serviceNames).Msg("Populating compose file with template")
+			log.Debug().Interface("serviceComposeFile", serviceComposeFile).Msg("Compose file after parsing")
 		},
 	}
 }
 
-// Helper function to save a Docker Compose file.
-func saveComposeFile(filePath string, composeFile dockercompose.ComposeFile) error {
-	fileData, err := yaml.Marshal(&composeFile)
-	if err != nil {
-		return fmt.Errorf("failed to marshal compose file to YAML: %w", err)
-	}
+// parseServiceNames parses the service names from the input arguments.
+// If the number of service names is less than the count, it generates default service names.
+func parseServiceNames(inputNames []string, count int) []string {
+	serviceNames := make([]string, count)
 
-	// Write data to file
-	if err := os.WriteFile(filePath, fileData, 0644); err != nil {
-		return fmt.Errorf("failed to write compose file: %w", err)
-	}
-	return nil
-}
-
-// parseServiceNames parses service names from command-line arguments.
-func parseServiceNames(args []string, count int) map[int]string {
-	serviceNames := make(map[int]string)
-	for i, arg := range args {
-		if i < count {
-			serviceNames[i+1] = arg
+	// Use provided names up to the count or the length of the inputNames
+	for i := 0; i < count; i++ {
+		if i < len(inputNames) {
+			serviceNames[i] = inputNames[i]
+		} else {
+			// Generate default names if insufficient names are provided
+			serviceNames[i] = fmt.Sprintf("service_%d", i+1)
 		}
 	}
+
 	return serviceNames
 }
