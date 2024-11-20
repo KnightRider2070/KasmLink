@@ -43,7 +43,7 @@ the count of service instances to create, and optional service names for seriali
 			count, err := strconv.Atoi(args[3])
 			if err != nil {
 				log.Error().Err(err).Msg("Invalid count value")
-				fmt.Printf("Error: invalid count value - %v\n", err)
+				log.Error().Msgf("Error: invalid count value - %v", err)
 				os.Exit(1)
 			}
 
@@ -98,8 +98,7 @@ the count of service instances to create, and optional service names for seriali
 			log.Debug().Interface("composeFile", composeFile).Msg("Compose file after merging")
 
 			// Write the compose file to the output path
-			// Attempt to write the compose file
-			fmt.Printf("Attempting to write the compose file to %s...\n", composeFilePath)
+			log.Info().Msgf("Attempting to write the compose file to %s...", composeFilePath)
 			err = procedures.WriteComposeFile(&composeFile, composeFilePath)
 			if err != nil {
 				fmt.Printf("Error: Failed to write the compose file to %s: %v\n", composeFilePath, err)
@@ -107,7 +106,7 @@ the count of service instances to create, and optional service names for seriali
 			}
 
 			// Log success message
-			fmt.Printf("Compose file successfully written to %s\n", composeFilePath)
+			log.Info().Msgf("Compose file successfully written to %s", composeFilePath)
 		},
 	}
 }
