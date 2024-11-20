@@ -5,6 +5,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"kasmlink/pkg/dockercompose"
+	"kasmlink/pkg/procedures"
 	"os"
 	"strconv"
 )
@@ -51,7 +52,7 @@ the count of service instances to create, and optional service names for seriali
 
 			// Create serviceFilePath
 			serviceFilePath := fmt.Sprintf("%s/%s.yaml", templateFolderPath, templateName)
-			// Echo service file struct after parsing
+			// Load service file
 			serviceComposeFile := dockercompose.ComposeFile{}
 			serviceComposeFilePtr, err := dockercompose.LoadComposeFile(serviceFilePath)
 			if err != nil {
@@ -59,6 +60,8 @@ the count of service instances to create, and optional service names for seriali
 				os.Exit(1)
 			}
 			serviceComposeFile = *serviceComposeFilePtr
+
+			log.Debug().Interface("serviceComposeFile", serviceComposeFile).Msg("Loaded service compose file")
 
 			// Load the output compose file if present otherwise create a new one
 			composeFile := dockercompose.ComposeFile{}
@@ -80,12 +83,31 @@ the count of service instances to create, and optional service names for seriali
 			// Use composeFile in subsequent code
 			log.Debug().Interface("composeFile", composeFile).Msg("Loaded compose file")
 
-			log.Info().Interface("composeFilePath", composeFilePath).Msg("Populating compose file with template")
-			log.Info().Interface("templateFolderPath", templateFolderPath).Msg("Populating compose file with template")
-			log.Info().Interface("templateName", templateName).Msg("Populating compose file with template")
-			log.Info().Int("count", count).Msg("Populating compose file with template")
-			log.Info().Interface("serviceNames", serviceNames).Msg("Populating compose file with template")
-			log.Debug().Interface("serviceComposeFile", serviceComposeFile).Msg("Compose file after parsing")
+			// Create replicas of service if required inside serviceComposeFile
+			err = procedures.CreateServiceReplicas(&serviceComposeFile, count, serviceNames)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to create service replicas")
+				os.Exit(1)
+			}
+
+			log.Debug().Interface("serviceComposeFile", serviceComposeFile).Msg("Service compose file after creating replicas")
+
+			// Merge serviceComposeFile into composeFile
+			composeFile, err = procedures.MergeComposeFiles(composeFile, serviceComposeFile)
+
+			log.Debug().Interface("composeFile", composeFile).Msg("Compose file after merging")
+
+			// Write the compose file to the output path
+			// Attempt to write the compose file
+			fmt.Printf("Attempting to write the compose file to %s...\n", composeFilePath)
+			err = procedures.WriteComposeFile(&composeFile, composeFilePath)
+			if err != nil {
+				fmt.Printf("Error: Failed to write the compose file to %s: %v\n", composeFilePath, err)
+				return
+			}
+
+			// Log success message
+			fmt.Printf("Compose file successfully written to %s\n", composeFilePath)
 		},
 	}
 }

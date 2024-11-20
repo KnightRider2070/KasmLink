@@ -1,9 +1,9 @@
 package procedures
 
 import (
-	"errors"
 	"fmt"
 	"github.com/rs/zerolog/log"
+	"gopkg.in/yaml.v3"
 	"io/fs"
 	embedfiles "kasmlink/embedded"
 	"kasmlink/pkg/dockercompose"
@@ -81,9 +81,10 @@ func InitDockerfilesFolder(folderPath string) error {
 func MergeComposeFiles(file1, file2 dockercompose.ComposeFile) (dockercompose.ComposeFile, error) {
 	// Check if versions are compatible
 	if file1.Version != file2.Version {
-		return dockercompose.ComposeFile{}, errors.New("incompatible compose file versions")
+		return dockercompose.ComposeFile{}, fmt.Errorf("incompatible compose file versions: %s and %s", file1.Version, file2.Version)
 	}
 
+	// Initialize the merged ComposeFile
 	merged := dockercompose.ComposeFile{
 		Version:  file1.Version,
 		Services: make(map[string]dockercompose.Service),
@@ -94,69 +95,97 @@ func MergeComposeFiles(file1, file2 dockercompose.ComposeFile) (dockercompose.Co
 	}
 
 	// Merge services
-	for name, service := range file1.Services {
-		merged.Services[name] = service
-	}
-	for name, service := range file2.Services {
-		if _, exists := merged.Services[name]; exists {
-			return dockercompose.ComposeFile{}, fmt.Errorf("service conflict: %s exists in both files", name)
+	if file1.Services != nil {
+		for name, service := range file1.Services {
+			merged.Services[name] = service
 		}
-		merged.Services[name] = service
+	}
+	if file2.Services != nil {
+		for name, service := range file2.Services {
+			if _, exists := merged.Services[name]; exists {
+				return dockercompose.ComposeFile{}, fmt.Errorf("service conflict: %s exists in both files", name)
+			}
+			merged.Services[name] = service
+		}
 	}
 
 	// Merge networks
-	for name, network := range file1.Networks {
-		merged.Networks[name] = network
-	}
-	for name, network := range file2.Networks {
-		if _, exists := merged.Networks[name]; exists {
-			return dockercompose.ComposeFile{}, fmt.Errorf("network conflict: %s exists in both files", name)
+	if file1.Networks != nil {
+		for name, network := range file1.Networks {
+			merged.Networks[name] = network
 		}
-		merged.Networks[name] = network
+	}
+	if file2.Networks != nil {
+		for name, network := range file2.Networks {
+			if _, exists := merged.Networks[name]; exists {
+				return dockercompose.ComposeFile{}, fmt.Errorf("network conflict: %s exists in both files", name)
+			}
+			merged.Networks[name] = network
+		}
 	}
 
 	// Merge volumes
-	for name, volume := range file1.Volumes {
-		merged.Volumes[name] = volume
-	}
-	for name, volume := range file2.Volumes {
-		if _, exists := merged.Volumes[name]; exists {
-			return dockercompose.ComposeFile{}, fmt.Errorf("volume conflict: %s exists in both files", name)
+	if file1.Volumes != nil {
+		for name, volume := range file1.Volumes {
+			merged.Volumes[name] = volume
 		}
-		merged.Volumes[name] = volume
+	}
+	if file2.Volumes != nil {
+		for name, volume := range file2.Volumes {
+			if _, exists := merged.Volumes[name]; exists {
+				return dockercompose.ComposeFile{}, fmt.Errorf("volume conflict: %s exists in both files", name)
+			}
+			merged.Volumes[name] = volume
+		}
 	}
 
 	// Merge configs
-	for name, config := range file1.Configs {
-		merged.Configs[name] = config
-	}
-	for name, config := range file2.Configs {
-		if _, exists := merged.Configs[name]; exists {
-			return dockercompose.ComposeFile{}, fmt.Errorf("config conflict: %s exists in both files", name)
+	if file1.Configs != nil {
+		for name, config := range file1.Configs {
+			merged.Configs[name] = config
 		}
-		merged.Configs[name] = config
+	}
+	if file2.Configs != nil {
+		for name, config := range file2.Configs {
+			if _, exists := merged.Configs[name]; exists {
+				return dockercompose.ComposeFile{}, fmt.Errorf("config conflict: %s exists in both files", name)
+			}
+			merged.Configs[name] = config
+		}
 	}
 
 	// Merge secrets
-	for name, secret := range file1.Secrets {
-		merged.Secrets[name] = secret
-	}
-	for name, secret := range file2.Secrets {
-		if _, exists := merged.Secrets[name]; exists {
-			return dockercompose.ComposeFile{}, fmt.Errorf("secret conflict: %s exists in both files", name)
+	if file1.Secrets != nil {
+		for name, secret := range file1.Secrets {
+			merged.Secrets[name] = secret
 		}
-		merged.Secrets[name] = secret
+	}
+	if file2.Secrets != nil {
+		for name, secret := range file2.Secrets {
+			if _, exists := merged.Secrets[name]; exists {
+				return dockercompose.ComposeFile{}, fmt.Errorf("secret conflict: %s exists in both files", name)
+			}
+			merged.Secrets[name] = secret
+		}
 	}
 
 	return merged, nil
 }
 
 // CreateServiceReplicas creates replicas of a service with modified names in a Compose file.
-func CreateServiceReplicas(composeFile *dockercompose.ComposeFile, serviceName string, replicas int, inputNames []string) error {
-	// Validate that the service exists in the compose file
-	originalService, exists := composeFile.Services[serviceName]
-	if !exists {
-		return fmt.Errorf("service %s does not exist in the compose file", serviceName)
+func CreateServiceReplicas(composeFile *dockercompose.ComposeFile, replicas int, inputNames []string) error {
+	// Ensure there is exactly one service in the compose file
+	if len(composeFile.Services) != 1 {
+		return fmt.Errorf("expected exactly one service in the compose file, found %d", len(composeFile.Services))
+	}
+
+	// Retrieve the single service
+	var originalServiceName string
+	var originalService dockercompose.Service
+	for name, service := range composeFile.Services {
+		originalServiceName = name
+		originalService = service
+		break
 	}
 
 	// Validate input names
@@ -187,7 +216,27 @@ func CreateServiceReplicas(composeFile *dockercompose.ComposeFile, serviceName s
 	}
 
 	// Remove the original service
-	delete(composeFile.Services, serviceName)
+	delete(composeFile.Services, originalServiceName)
+
+	return nil
+}
+
+// WriteComposeFile writes the provided ComposeFile object to a specified file path.
+func WriteComposeFile(composeFile *dockercompose.ComposeFile, filePath string) error {
+	// Open the file for writing (create or truncate)
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", filePath, err)
+	}
+	defer file.Close()
+
+	// Encode the ComposeFile as YAML
+	encoder := yaml.NewEncoder(file)
+	defer encoder.Close()
+
+	if err := encoder.Encode(composeFile); err != nil {
+		return fmt.Errorf("failed to write compose file to %s: %w", filePath, err)
+	}
 
 	return nil
 }
