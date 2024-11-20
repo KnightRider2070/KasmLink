@@ -77,16 +77,25 @@ func InitDockerfilesFolder(folderPath string) error {
 	return InitFolder(folderPath, "dockerfiles", "dockerfiles", embedfiles.EmbeddedDockerImagesDirectory)
 }
 
-// MergeComposeFiles merges two ComposeFile objects into one.
 func MergeComposeFiles(file1, file2 dockercompose.ComposeFile) (dockercompose.ComposeFile, error) {
 	// Check if versions are compatible
-	if file1.Version != file2.Version {
+	if file1.Version != "" && file2.Version != "" && file1.Version != file2.Version {
+		log.Error().
+			Str("file1_version", file1.Version).
+			Str("file2_version", file2.Version).
+			Msg("incompatible compose file versions")
 		return dockercompose.ComposeFile{}, fmt.Errorf("incompatible compose file versions: %s and %s", file1.Version, file2.Version)
+	}
+
+	// Use file2's version if file1's version is empty
+	version := file1.Version
+	if version == "" {
+		version = file2.Version
 	}
 
 	// Initialize the merged ComposeFile
 	merged := dockercompose.ComposeFile{
-		Version:  file1.Version,
+		Version:  version,
 		Services: make(map[string]dockercompose.Service),
 		Networks: make(map[string]dockercompose.Network),
 		Volumes:  make(map[string]dockercompose.Volume),
@@ -95,80 +104,71 @@ func MergeComposeFiles(file1, file2 dockercompose.ComposeFile) (dockercompose.Co
 	}
 
 	// Merge services
-	if file1.Services != nil {
-		for name, service := range file1.Services {
-			merged.Services[name] = service
-		}
+	log.Debug().
+		Interface("file1_services", file1.Services).
+		Interface("file2_services", file2.Services).
+		Msg("merging services")
+	for name, service := range file1.Services {
+		merged.Services[name] = service
 	}
-	if file2.Services != nil {
-		for name, service := range file2.Services {
-			if _, exists := merged.Services[name]; exists {
-				return dockercompose.ComposeFile{}, fmt.Errorf("service conflict: %s exists in both files", name)
-			}
+	for name, service := range file2.Services {
+		if existingService, exists := merged.Services[name]; exists {
+			log.Debug().Str("service_name", name).Msg("merging existing service")
+			merged.Services[name] = existingService
+		} else {
 			merged.Services[name] = service
 		}
 	}
 
 	// Merge networks
-	if file1.Networks != nil {
-		for name, network := range file1.Networks {
-			merged.Networks[name] = network
-		}
+	log.Debug().
+		Interface("file1_networks", file1.Networks).
+		Interface("file2_networks", file2.Networks).
+		Msg("merging networks")
+	for name, network := range file1.Networks {
+		merged.Networks[name] = network
 	}
-	if file2.Networks != nil {
-		for name, network := range file2.Networks {
-			if _, exists := merged.Networks[name]; exists {
-				return dockercompose.ComposeFile{}, fmt.Errorf("network conflict: %s exists in both files", name)
-			}
+	for name, network := range file2.Networks {
+		if _, exists := merged.Networks[name]; !exists {
 			merged.Networks[name] = network
 		}
 	}
 
 	// Merge volumes
-	if file1.Volumes != nil {
-		for name, volume := range file1.Volumes {
-			merged.Volumes[name] = volume
-		}
+	log.Debug().
+		Interface("file1_volumes", file1.Volumes).
+		Interface("file2_volumes", file2.Volumes).
+		Msg("merging volumes")
+	for name, volume := range file1.Volumes {
+		merged.Volumes[name] = volume
 	}
-	if file2.Volumes != nil {
-		for name, volume := range file2.Volumes {
-			if _, exists := merged.Volumes[name]; exists {
-				return dockercompose.ComposeFile{}, fmt.Errorf("volume conflict: %s exists in both files", name)
-			}
+	for name, volume := range file2.Volumes {
+		if _, exists := merged.Volumes[name]; !exists {
 			merged.Volumes[name] = volume
 		}
 	}
 
 	// Merge configs
-	if file1.Configs != nil {
-		for name, config := range file1.Configs {
-			merged.Configs[name] = config
-		}
+	for name, config := range file1.Configs {
+		merged.Configs[name] = config
 	}
-	if file2.Configs != nil {
-		for name, config := range file2.Configs {
-			if _, exists := merged.Configs[name]; exists {
-				return dockercompose.ComposeFile{}, fmt.Errorf("config conflict: %s exists in both files", name)
-			}
+	for name, config := range file2.Configs {
+		if _, exists := merged.Configs[name]; !exists {
 			merged.Configs[name] = config
 		}
 	}
 
 	// Merge secrets
-	if file1.Secrets != nil {
-		for name, secret := range file1.Secrets {
-			merged.Secrets[name] = secret
-		}
+	for name, secret := range file1.Secrets {
+		merged.Secrets[name] = secret
 	}
-	if file2.Secrets != nil {
-		for name, secret := range file2.Secrets {
-			if _, exists := merged.Secrets[name]; exists {
-				return dockercompose.ComposeFile{}, fmt.Errorf("secret conflict: %s exists in both files", name)
-			}
+	for name, secret := range file2.Secrets {
+		if _, exists := merged.Secrets[name]; !exists {
 			merged.Secrets[name] = secret
 		}
 	}
 
+	log.Debug().Interface("merged_compose_file", merged).Msg("merge completed")
 	return merged, nil
 }
 
