@@ -25,7 +25,7 @@ func TestComposeFileWithFullStructure(t *testing.T) {
 					Target: "target_stage",
 					Labels: map[string]string{"label1": "value1"},
 				},
-				Environment:     map[string]string{"ENV_VAR1": "value1"},
+				Environment:     map[interface{}]interface{}{"ENV_VAR1": "value1"},
 				Ports:           []string{"80:80"},
 				Volumes:         []string{"/data:/data"},
 				Secrets:         []string{"secret1"},
@@ -91,7 +91,7 @@ func TestComposeFileWithFullStructure(t *testing.T) {
 				},
 				NetworkConfig: dockercompose.NetworkConfig{
 					Mode:       "bridge",
-					Networks:   []string{"net1"},
+					Networks:   []interface{}{"net1"},
 					Links:      []string{"service_a:alias"},
 					MacAddress: "02:42:ac:11:00:02",
 				},
