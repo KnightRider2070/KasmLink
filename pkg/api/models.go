@@ -13,7 +13,6 @@ type TargetUser struct {
 	Organization string `json:"organization,omitempty"`
 	Phone        string `json:"phone,omitempty"`
 	Password     string `json:"password,omitempty"`
-	Notes        string `json:"notes,omitempty"` // Added Notes field based on new API
 }
 
 // UserGroup represents a user's group in the response.
