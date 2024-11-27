@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -212,4 +213,12 @@ func ImportImageFromTar(ctx context.Context, retries int, tarFilePath string) er
 
 	log.Info().Str("tar_file_path", tarFilePath).Msg("Docker image imported from tar file successfully")
 	return nil
+}
+
+// TODO: Enahance
+func BuildDockerImage(dockerfilePath, imageName string) error {
+	cmd := exec.Command("docker", "build", "-t", imageName, "-f", dockerfilePath, ".")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
