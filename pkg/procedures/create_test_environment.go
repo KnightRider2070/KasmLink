@@ -3,11 +3,11 @@ package procedures
 import (
 	"fmt"
 	"github.com/rs/zerolog/log"
-	"kasmlink/pkg/api"
 	"kasmlink/pkg/userParser"
+	"kasmlink/pkg/webApi"
 )
 
-func processUsers(kapi *api.KasmAPI, yamlFilePath string, groupID string) error {
+func processUsers(kapi *webApi.KasmAPI, yamlFilePath string, groupID string) error {
 	log.Info().Str("yamlFilePath", yamlFilePath).Msg("Starting user processing")
 
 	// Step 1: Load configuration
@@ -28,7 +28,7 @@ func processUsers(kapi *api.KasmAPI, yamlFilePath string, groupID string) error 
 		if err != nil {
 			// If user does not exist, create it
 			log.Debug().Str("username", user.Username).Msg("User not found, creating new user")
-			newUser := api.TargetUser{
+			newUser := webApi.TargetUser{
 				Username:     user.Username,
 				FirstName:    user.FirstName,
 				LastName:     user.LastName,

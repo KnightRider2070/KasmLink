@@ -1,4 +1,4 @@
-package api
+package webApi
 
 // USER API STRUCTS
 
@@ -13,6 +13,7 @@ type TargetUser struct {
 	Organization string `json:"organization,omitempty"`
 	Phone        string `json:"phone,omitempty"`
 	Password     string `json:"password,omitempty"`
+	// Add other necessary fields as per API specifications
 }
 
 // UserGroup represents a user's group in the response.
@@ -41,18 +42,18 @@ type KasmServerInfo struct {
 type UserResponse struct {
 	UserID       string        `json:"user_id"`
 	Username     string        `json:"username"`
-	FirstName    *string       `json:"first_name"` // Use pointer to handle null
-	LastName     *string       `json:"last_name"`  // Use pointer to handle null
-	Phone        *string       `json:"phone"`      // Use pointer to handle null
-	Organization *string       `json:"organization"`
+	FirstName    *string       `json:"first_name,omitempty"` // Pointer to handle null
+	LastName     *string       `json:"last_name,omitempty"`  // Pointer to handle null
+	Phone        *string       `json:"phone,omitempty"`      // Pointer to handle null
+	Organization *string       `json:"organization,omitempty"`
 	Realm        string        `json:"realm"`
-	LastSession  *string       `json:"last_session"`
+	LastSession  *string       `json:"last_session,omitempty"`
 	Groups       []UserGroup   `json:"groups"`
 	Kasms        []KasmSession `json:"kasms"`
 	Disabled     bool          `json:"disabled"`
 	Locked       bool          `json:"locked"`
 	Created      string        `json:"created"`
-	Notes        *string       `json:"notes"` // Added Notes field based on new API
+	Notes        *string       `json:"notes,omitempty"` // Added Notes field based on new API
 }
 
 // UserAttributes represents a user's attributes (preferences).
@@ -62,8 +63,9 @@ type UserAttributes struct {
 	UserID             string  `json:"user_id"`
 	ToggleControlPanel bool    `json:"toggle_control_panel"`
 	ChatSFX            bool    `json:"chat_sfx"`
-	DefaultImage       *string `json:"default_image"`
-	AutoLoginKasm      *bool   `json:"auto_login_kasm"`
+	DefaultImage       *string `json:"default_image,omitempty"`
+	AutoLoginKasm      *bool   `json:"auto_login_kasm,omitempty"`
+	// Add other necessary fields as per API specifications
 }
 
 // KASM API STRUCTS
@@ -78,7 +80,7 @@ type RequestKasmRequest struct {
 	Environment    map[string]string `json:"environment,omitempty"`
 	ClientLanguage *string           `json:"client_language,omitempty"`
 	ClientTimezone *string           `json:"client_timezone,omitempty"`
-	KasmURL        *string           `json:"kasm_url,omitempty"` // Added KasmURL field based on new API
+	KasmURL        *string           `json:"kasm_url,omitempty"`
 }
 
 // RequestKasmResponse represents the response when a Kasm session is requested.

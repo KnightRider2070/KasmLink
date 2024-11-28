@@ -3,6 +3,7 @@ module kasmlink
 go 1.23
 
 require (
+	github.com/bramvdbogaerde/go-scp v1.5.0
 	github.com/docker/docker v27.3.1+incompatible
 	github.com/fatih/color v1.18.0
 	github.com/google/go-github/v43 v43.0.0

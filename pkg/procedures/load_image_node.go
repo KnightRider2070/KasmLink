@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"kasmlink/pkg/scp"
-	shadowssh "kasmlink/pkg/ssh"
+	shadowssh "kasmlink/pkg/sshmanager"
 	"path/filepath"
 	"time"
 )

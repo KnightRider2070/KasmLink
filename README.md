@@ -58,7 +58,7 @@ KasmLink interacts with your Kasm server using an API key and secret. You can ei
 2. Or pass these values dynamically when executing commands:
 
    ```sh
-   kasmlink --api-key your_api_key --api-secret your_api_secret
+   kasmlink --webApi-key your_api_key --webApi-secret your_api_secret
    ```
 ## Command Usage Guide
 
@@ -143,7 +143,7 @@ kasmlink compose generate [composeFilePath] [templateFolderPath] [templateName] 
 
 2. **Update an existing Docker Compose file with specific service names:**
    ```sh
-   kasmlink compose generate /path/to/docker-compose.yaml /path/to/templates api-service 2 api-v1 api-v2
+   kasmlink compose generate /path/to/docker-compose.yaml /path/to/templates webApi-service 2 webApi-v1 webApi-v2
    ```
    This command will add two instances of the `api-service` template, named `api-v1` and `api-v2`, to the existing compose file located at `/path/to/docker-compose.yaml`.
 

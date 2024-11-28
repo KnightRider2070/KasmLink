@@ -5,6 +5,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
 	embedfiles "kasmlink/embedded"
+	"kasmlink/pkg/dockercli"
 	"kasmlink/pkg/dockerutils"
 )
 
@@ -20,7 +21,7 @@ func BuildNFSContainer(imageTag, domain, exportDir, exportNetwork, nfsVersion st
 	}
 
 	// Create tar archive from the embedded Dockerfile and build context
-	buildContextTar, err := dockerutils.CreateTarFromEmbedded(embedfiles.EmbeddedDockerImagesDirectory, "dockerfiles")
+	buildContextTar, err := dockercli.CreateTarFromEmbedded(embedfiles.EmbeddedDockerImagesDirectory, "dockerfiles")
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create build context tar")
 		return fmt.Errorf("failed to create build context tar: %v", err)
