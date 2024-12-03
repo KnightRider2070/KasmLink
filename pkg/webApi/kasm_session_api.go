@@ -8,14 +8,24 @@ import (
 )
 
 // RequestKasmSession requests a new Kasm session.
-func (api *KasmAPI) RequestKasmSession(ctx context.Context, req RequestKasmRequest) (*RequestKasmResponse, error) {
+func (api *KasmAPI) RequestKasmSession(ctx context.Context, userID string, imageID string, envArgs map[string]string) (*RequestKasmResponse, error) {
 	endpoint := "/api/public/request_kasm"
 	log.Info().
 		Str("method", "POST").
 		Str("endpoint", endpoint).
-		Str("user_id", req.UserID).
-		Str("image_id", req.ImageID).
+		Str("user_id", userID).
+		Str("image_id", imageID).
 		Msg("Requesting Kasm session")
+
+	// Create a new RequestKasmRequest struct
+	req := RequestKasmRequest{
+		APIKey:        api.APIKey,
+		APIKeySecret:  api.APIKeySecret,
+		UserID:        userID,
+		ImageID:       imageID,
+		EnableSharing: false, //TODO: Think about if this should be configurable, securtiy wise not a good idea
+		Environment:   envArgs,
+	}
 
 	// Make POST request using the enhanced MakePostRequest method
 	responseBytes, err := api.MakePostRequest(ctx, endpoint, req)

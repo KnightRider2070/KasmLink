@@ -1,12 +1,6 @@
 package cmd
 
-import (
-	"fmt"
-	"github.com/spf13/cobra"
-	"kasmlink/pkg/procedures"
-	"os"
-)
-
+/*
 func init() {
 	// Define the "dockerbuild" command group
 	dockerBuildCmd := &cobra.Command{
@@ -28,7 +22,7 @@ func createNFSBuildCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "build-nfs [imageTag] [domain] [exportDir] [exportNetwork] [nfsVersion]",
 		Short: "Build the NFS Docker container",
-		Long: `Build the NFS Docker container using the specified image tag, domain, export directory, 
+		Long: `Build the NFS Docker container using the specified image tag, domain, export directory,
 export network, and NFS version.`,
 		Args: cobra.ExactArgs(5),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -72,3 +66,4 @@ Postgres user, password, and database.`,
 		},
 	}
 }
+*/

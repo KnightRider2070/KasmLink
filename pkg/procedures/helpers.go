@@ -59,15 +59,6 @@ func checkRemoteImages(ctx context.Context, client *shadowssh.SSHClient, images 
 	return missing, nil
 }
 
-import (
-"context"
-"fmt"
-
-"kasmlink/pkg/webApi"
-
-"github.com/rs/zerolog/log"
-)
-
 // createOrGetUser creates a new user via KASM API or retrieves the existing user's ID.
 // Parameters:
 // - ctx: Context for managing cancellation and timeouts.
@@ -100,9 +91,14 @@ func createOrGetUser(ctx context.Context, api *webApi.KasmAPI, user userParser.U
 
 		// Define the target user details
 		targetUser := webApi.TargetUser{
-			Username: user.TargetUser.Username,
-			imageTag: imageTag,
-			// Populate other necessary fields as required by your API
+			Username:     user.TargetUser.Username,
+			FirstName:    user.TargetUser.FirstName,
+			LastName:     user.TargetUser.LastName,
+			Locked:       user.TargetUser.Locked,
+			Disabled:     user.TargetUser.Disabled,
+			Organization: user.TargetUser.Organization,
+			Phone:        user.TargetUser.Phone,
+			Password:     user.TargetUser.Password,
 		}
 
 		// Step 2: Create the user via the API
@@ -125,14 +121,39 @@ func createOrGetUser(ctx context.Context, api *webApi.KasmAPI, user userParser.U
 	// User exists; return the existing user ID
 	log.Info().
 		Str("username", user.TargetUser.Username).
-		Str("user_id", user.UserID).
+		Str("user_id", user.TargetUser.UserID).
 		Msg("User already exists in KASM API")
-	return user.UserID, nil
+	return user.TargetUser.UserID, nil
 }
 
-// isUserNotFoundError checks if the error returned by GetUser indicates that the user was not found.
-// You may need to adjust this function based on how your API communicates "not found" errors.
-func isUserNotFoundError(err error) bool {
-	// Example: Check if the error message contains "not found"
-	return fmt.Sprintf("%v", err) == "user not found" // Adjust condition as per your API's error messages
+// getGroupIDByName retrieves the group ID by the role name via KASM API.
+// NOTE: This function is still in development and does not return useful data yet.
+func getGroupIDByName(ctx context.Context, api *webApi.KasmAPI, roleName string) (string, error) {
+	log.Info().
+		Str("role", roleName).
+		Msg("Retrieving group ID by role name via KASM API")
+
+	//TODO: Figure out how to retrieve groups from the API
+	/*groups, err := api.GetGroups(ctx)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Msg("Failed to retrieve groups from KASM API")
+		return "", fmt.Errorf("failed to retrieve groups: %w", err)
+	}
+
+	for _, group := range groups {
+		if group.Name == roleName {
+			log.Info().
+				Str("role", roleName).
+				Str("group_id", group.ID).
+				Msg("Group ID retrieved successfully")
+			return group.ID, nil
+		}
+	}*/
+
+	log.Error().
+		Str("role", roleName).
+		Msg("Group ID not found in KASM API")
+	return "", fmt.Errorf("group ID not found for role: %s", roleName)
 }

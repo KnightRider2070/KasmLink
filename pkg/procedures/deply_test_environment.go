@@ -7,26 +7,7 @@ import (
 	shadowssh "kasmlink/pkg/sshmanager"
 	"kasmlink/pkg/userParser"
 	"kasmlink/pkg/webApi"
-	"time"
-)
-
-// procedures/procedures.go
-package procedures
-
-import (
-"context"
-"fmt"
-"path/filepath"
-"strings"
-"time"
-
-"kasmlink/pkg/dockercli"
-"kasmlink/pkg/userParser"
-"kasmlink/pkg/webApi"
-shadowscp "kasmlink/pkg/scp"
-shadowssh "kasmlink/pkg/sshmanager"
-
-"github.com/rs/zerolog/log"
+	"path/filepath"
 )
 
 // CreateTestEnvironment creates a test environment based on the user configuration file.
@@ -107,7 +88,9 @@ func CreateTestEnvironment(ctx context.Context, userConfigurationFilePath string
 
 			// Step 3.2: Deploy the missing Docker image
 			// Assume DockerfilePath is known or derived based on image tag
-			dockerfilePath := getDockerfilePath(user.AssignedContainerTag) // Implement this function as needed
+			//TODO: Implement this function as needed
+			//dockerfilePath := getDockerfilePath(user.AssignedContainerTag)
+			dockerfilePath := filepath.Join("path", "to", "Dockerfile")
 
 			if err := DeployImages(ctx, dockerfilePath, user.AssignedContainerTag, sshConfig); err != nil {
 				log.Error().
@@ -127,7 +110,7 @@ func CreateTestEnvironment(ctx context.Context, userConfigurationFilePath string
 			Str("username", user.TargetUser.Username).
 			Msg("Creating or retrieving user via KASM API")
 
-		userID, err := createOrGetUser(ctx,kasmApi ,user)
+		userID, err := createOrGetUser(ctx, kasmApi, user)
 		if err != nil {
 			log.Error().
 				Err(err).
@@ -137,38 +120,39 @@ func CreateTestEnvironment(ctx context.Context, userConfigurationFilePath string
 		}
 		user.TargetUser.UserID = userID
 
-		// Step 3.4: Add the user to the specified group via KASM API
-		log.Info().
-			Str("username", user.TargetUser.Username).
-			Str("role", user.Role).
-			Msg("Adding user to the specified group via KASM API")
-
-		groupID, err := getGroupIDByName(ctx, user.Role)
-		if err != nil {
-			log.Error().
-				Err(err).
+		/*	// Step 3.4: Add the user to the specified group via KASM API
+			log.Info().
+				Str("username", user.TargetUser.Username).
 				Str("role", user.Role).
-				Msg("Failed to retrieve group ID from KASM API")
-			return fmt.Errorf("failed to retrieve group ID for role %s: %w", user.Role, err)
-		}
+				Msg("Adding user to the specified group via KASM API")
 
-		if err := addUserToGroup(ctx, user.TargetUser.UserID, groupID); err != nil {
-			log.Error().
-				Err(err).
+			groupID, err := getGroupIDByName(ctx, kasmApi, user.Role)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("role", user.Role).
+					Msg("Failed to retrieve group ID from KASM API")
+				return fmt.Errorf("failed to retrieve group ID for role %s: %w", user.Role, err)
+			}
+
+			if err := addUserToGroup(ctx, user.TargetUser.UserID, groupID); err != nil {
+				log.Error().
+					Err(err).
+					Str("user_id", user.TargetUser.UserID).
+					Str("group_id", groupID).
+					Msg("Failed to add user to group via KASM API")
+				return fmt.Errorf("failed to add user %s to group %s: %w", user.TargetUser.Username, groupID, err)
+			}
+
+			log.Info().
 				Str("user_id", user.TargetUser.UserID).
 				Str("group_id", groupID).
-				Msg("Failed to add user to group via KASM API")
-			return fmt.Errorf("failed to add user %s to group %s: %w", user.TargetUser.Username, groupID, err)
-		}
-
-		log.Info().
-			Str("user_id", user.TargetUser.UserID).
-			Str("group_id", groupID).
-			Msg("Successfully added user to group via KASM API")
+				Msg("Successfully added user to group via KASM API")
+		*/
 
 		// Step 3.5: Update the YAML file with UserID and KasmSessionOfContainer
 		// TODO: Implement logic to obtain the actual KasmSessionOfContainer
-		kasmSessionOfContainer, err := generateKasmSession(ctx, user.TargetUser.Username) // Implement this function
+		kasmRequestResponse, err := kasmApi.RequestKasmSession(ctx, user.TargetUser.UserID, user.AssignedContainerTag, user.EnvironmentArgs)
 		if err != nil {
 			log.Error().
 				Err(err).
@@ -180,10 +164,11 @@ func CreateTestEnvironment(ctx context.Context, userConfigurationFilePath string
 		log.Info().
 			Str("username", user.TargetUser.Username).
 			Str("user_id", user.TargetUser.UserID).
-			Str("kasm_session_of_container", kasmSessionOfContainer).
+			Str("kasm_session_of_container", kasmRequestResponse.KasmID).
+			Str("url: ", kasmRequestResponse.KasmURL).
 			Msg("Updating user configuration in YAML file")
 
-		if err := userParserInstance.UpdateUserConfig(userConfigurationFilePath, user.TargetUser.Username, user.TargetUser.UserID, kasmSessionOfContainer); err != nil {
+		if err := userParserInstance.UpdateUserConfig(userConfigurationFilePath, user.TargetUser.Username, user.TargetUser.UserID, kasmRequestResponse.KasmID); err != nil {
 			log.Error().
 				Err(err).
 				Str("username", user.TargetUser.Username).

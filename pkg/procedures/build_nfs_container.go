@@ -1,12 +1,12 @@
 package procedures
 
+/*
 import (
 	"fmt"
 	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
 	embedfiles "kasmlink/embedded"
 	"kasmlink/pkg/dockercli"
-	"kasmlink/pkg/dockerutils"
 )
 
 // BuildNFSContainer builds a Docker image for an NFS server using the embedded Dockerfile.
@@ -53,3 +53,4 @@ func BuildNFSContainer(imageTag, domain, exportDir, exportNetwork, nfsVersion st
 	log.Info().Str("imageTag", imageTag).Msg("Successfully built NFS Docker image")
 	return nil
 }
+*/

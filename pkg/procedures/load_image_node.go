@@ -1,11 +1,6 @@
 package procedures
 
 import (
-	"fmt"
-	"github.com/rs/zerolog/log"
-	"kasmlink/pkg/scp"
-	shadowssh "kasmlink/pkg/sshmanager"
-	"path/filepath"
 	"time"
 )
 
@@ -14,6 +9,7 @@ const (
 	retryCount = 3
 )
 
+/*
 // ImportDockerImageToRemoteNode copies a Docker image tar to the remote node and imports it using SSH.
 func ImportDockerImageToRemoteNode(username, password, host, localTarFilePath, remoteDir string) error {
 	log.Info().
@@ -97,3 +93,4 @@ func retryOperation(retries int, delay time.Duration, operation func() error, de
 	}
 	return nil
 }
+*/

@@ -1,5 +1,6 @@
 package procedures
 
+/*
 import (
 	"fmt"
 	"github.com/docker/docker/client"
@@ -53,3 +54,4 @@ func BuildPostgresContainer(imageTag, postgresVersion, postgresUser, postgresPas
 	log.Info().Str("imageTag", imageTag).Msg("Successfully built PostgreSQL Docker image")
 	return nil
 }
+*/

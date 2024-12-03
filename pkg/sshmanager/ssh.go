@@ -100,6 +100,8 @@ func NewSSHClient(ctx context.Context, config *SSHConfig) (*SSHClient, error) {
 		log.Error().
 			Err(err).
 			Str("address", address).
+			Str("username", config.Username).
+			Str("timeout", config.ConnectionTimeout.String()).
 			Msg("Failed to dial SSH")
 		return nil, fmt.Errorf("failed to dial SSH: %w", err)
 	}
