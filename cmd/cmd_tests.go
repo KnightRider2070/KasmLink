@@ -79,7 +79,7 @@ func createTestEnv() *cobra.Command {
 			sshConfig, _ := sshmanager.NewSSHConfig("thor", "stark", "192.168.56.103", 22, "C:\\Users\\cjhue\\.ssh\\known_hosts", 10*time.Second)
 
 			//Create KASM API
-			kApi := webApi.NewKasmAPI("http://192.168.56.103", "kvfrXBk9B8cl", "6YKSwVr74GAv23wuj3cS0vRbm9O4qmwE", false, 10*time.Second)
+			kApi := webApi.NewKasmAPI("https://192.168.56.103", "kvfrXBk9B8cl", "6YKSwVr74GAv23wuj3cS0vRbm9O4qmwE", true, 10*time.Second)
 
 			ctx, _ := context.WithTimeout(context.Background(), 100*time.Second)
 			err = procedures.CreateTestEnvironment(ctx, tempFile.Name(), sshConfig, kApi)

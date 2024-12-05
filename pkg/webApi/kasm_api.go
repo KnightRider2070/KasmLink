@@ -24,10 +24,12 @@ func NewKasmAPI(baseURL, apiKey, apiKeySecret string, skipTLSVerification bool, 
 		requestTimeout = 30 * time.Second // Set default timeout
 	}
 
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: skipTLSVerification, // Configures TLS verification
+	}
+
 	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: skipTLSVerification, // Configures TLS verification
-		},
+		TLSClientConfig:     tlsConfig,
 		IdleConnTimeout:     90 * time.Second,
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 10,
@@ -44,6 +46,7 @@ func NewKasmAPI(baseURL, apiKey, apiKeySecret string, skipTLSVerification bool, 
 		Str("base_url", baseURL).
 		Bool("skip_tls_verification", skipTLSVerification).
 		Dur("request_timeout", requestTimeout).
+		Interface("tls_config", tlsConfig).
 		Msg("Creating new KasmAPI instance with configured HTTP client")
 
 	return &KasmAPI{

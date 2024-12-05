@@ -144,27 +144,22 @@ func (api *KasmAPI) MakePostRequest(ctx context.Context, endpoint string, payloa
 		return nil, fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	log.Info().
-		Str("method", "POST").
-		Str("url", url).
-		Msg("Initiating POST request")
-
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(body))
-	if err != nil {
-		log.Error().
-			Err(err).
-			Str("method", "POST").
-			Str("url", url).
-			Msg("Failed to create POST request")
-		return nil, fmt.Errorf("failed to create POST request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	// Set Authorization header with both APIKey and APIKeySecret if required
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s:%s", api.APIKey, api.APIKeySecret))
-
 	var lastErr error
 	for attempt := 1; attempt <= 3; attempt++ {
+		// Re-create the request for each retry to reset the body
+		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("method", "POST").
+				Str("url", url).
+				Msg("Failed to create POST request")
+			return nil, fmt.Errorf("failed to create POST request: %w", err)
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s:%s", api.APIKey, api.APIKeySecret))
+
 		resp, err := api.Client.Do(req)
 		if err != nil {
 			log.Error().
@@ -176,7 +171,7 @@ func (api *KasmAPI) MakePostRequest(ctx context.Context, endpoint string, payloa
 			lastErr = err
 			sleepDuration := time.Duration(math.Pow(2, float64(attempt))) * time.Second
 			jitter := time.Duration(rand.Int63n(1000)) * time.Millisecond
-			time.Sleep(sleepDuration + jitter) // Exponential backoff with jitter
+			time.Sleep(sleepDuration + jitter)
 			continue
 		}
 
