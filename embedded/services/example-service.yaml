@@ -5,13 +5,14 @@ services:
   example_service:
     build: ./app
     container_name: example_service_container
+    hostname: example_service
     networks:
       example_network:
         ipv4_address: 10.5.0.5
     environment:
       - ENV_VAR=example_value
     healthcheck:
-      test: ["CMD-SHELL", "echo 'healthy'"]
+      test: [ "CMD-SHELL", "echo 'healthy'" ]
       interval: 30s
       timeout: 10s
       retries: 3

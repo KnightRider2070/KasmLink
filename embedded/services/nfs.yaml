@@ -21,7 +21,7 @@ services:
     volumes:
       - nfs_data:/home
     healthcheck:
-      test: ["CMD-SHELL", "showmount -e localhost || exit 1"]
+      test: [ "CMD-SHELL", "showmount -e localhost || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3

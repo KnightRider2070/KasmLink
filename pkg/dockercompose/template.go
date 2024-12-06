@@ -10,24 +10,28 @@ import (
 // LoadEmbeddedTemplate loads the embedded Docker Compose template from the embedded file system.
 func LoadEmbeddedTemplate(templatePath string) (*template.Template, error) {
 	// Check if the template path is specified; otherwise, use the default
+	defaultTemplatePath := "services/docker-compose-template.yaml"
 	if templatePath == "" {
-		templatePath = "templates/docker-compose-template.yaml"
+		templatePath = defaultTemplatePath
+		log.Debug().Str("templatePath", templatePath).Msg("No template path provided. Using default template path")
+	} else {
+		log.Debug().Str("templatePath", templatePath).Msg("Using provided template path")
 	}
-	log.Info().Str("templatePath", templatePath).Msg("Attempting to load embedded template")
 
 	// Attempt to read the template content from the embedded filesystem
-	templateContent, err := embedfiles.EmbeddedTemplateFS.ReadFile(templatePath)
+	log.Info().Str("templatePath", templatePath).Msg("Attempting to load embedded template")
+	templateContent, err := embedfiles.EmbeddedServicesFS.ReadFile(templatePath)
 	if err != nil {
-		log.Error().Err(err).Str("templatePath", templatePath).Msg("Failed to load embedded template")
-		return nil, fmt.Errorf("failed to load embedded template at %s: %v", templatePath, err)
+		log.Error().Err(err).Str("templatePath", templatePath).Msg("Failed to load embedded template. Ensure the template path is correct and the file is available in the embedded filesystem")
+		return nil, fmt.Errorf("failed to load embedded template at %s: %w", templatePath, err)
 	}
-	log.Info().Str("templatePath", templatePath).Msg("Embedded template loaded successfully")
+	log.Debug().Str("templatePath", templatePath).Msg("Successfully loaded embedded template content")
 
 	// Parse the template content
 	tmpl, err := template.New("docker-compose").Parse(string(templateContent))
 	if err != nil {
-		log.Error().Err(err).Str("templatePath", templatePath).Msg("Failed to parse embedded template")
-		return nil, fmt.Errorf("failed to parse embedded template at %s: %v", templatePath, err)
+		log.Error().Err(err).Str("templatePath", templatePath).Msg("Failed to parse embedded template. Verify template syntax and content")
+		return nil, fmt.Errorf("failed to parse embedded template at %s: %w", templatePath, err)
 	}
 	log.Info().Str("templatePath", templatePath).Msg("Embedded template parsed successfully")
 
