@@ -21,7 +21,7 @@ type KasmAPI struct {
 // It initializes the HTTP client with appropriate configurations.
 func NewKasmAPI(baseURL, apiKey, apiKeySecret string, skipTLSVerification bool, requestTimeout time.Duration) *KasmAPI {
 	if requestTimeout == 0 {
-		requestTimeout = 30 * time.Second // Set default timeout
+		requestTimeout = 240 * time.Second
 	}
 
 	tlsConfig := &tls.Config{
@@ -30,7 +30,7 @@ func NewKasmAPI(baseURL, apiKey, apiKeySecret string, skipTLSVerification bool, 
 
 	transport := &http.Transport{
 		TLSClientConfig:     tlsConfig,
-		IdleConnTimeout:     90 * time.Second,
+		IdleConnTimeout:     240 * time.Second,
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 10,
 		DisableKeepAlives:   false,
