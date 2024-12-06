@@ -94,7 +94,7 @@ func (api *KasmAPI) GetUser(ctx context.Context, userID, username string) (*User
 		Str("endpoint", endpoint).
 		Str("user_id", userID).
 		Str("username", username).
-		Msg("Fetching user details")
+		Msg("Fetching userGetResponse details")
 
 	// Construct request payload
 	requestPayload := GetUsersRequest{
@@ -114,26 +114,33 @@ func (api *KasmAPI) GetUser(ctx context.Context, userID, username string) (*User
 			Str("method", "POST").
 			Str("endpoint", endpoint).
 			Str("user_id", userID).
-			Msg("Failed to fetch user details")
-		return nil, fmt.Errorf("failed to fetch user details: %w", err)
+			Msg("Failed to fetch userGetResponse details")
+		return nil, fmt.Errorf("failed to fetch userGetResponse details: %w", err)
 	}
 
 	// Parse the response into UserResponse struct
-	var user UserResponse
-	if err := json.Unmarshal(responseBytes, &user); err != nil {
+	var userGetResponse GetUserResponse
+	if err := json.Unmarshal(responseBytes, &userGetResponse); err != nil {
 		log.Error().
 			Err(err).
 			Str("method", "POST").
 			Str("endpoint", endpoint).
 			Str("user_id", userID).
-			Msg("Failed to decode get user response")
-		return nil, fmt.Errorf("failed to decode get user response: %v", err)
+			Msg("Failed to decode get userGetResponse response")
+		return nil, fmt.Errorf("failed to decode get userGetResponse response: %v", err)
 	}
+
+	var user = userGetResponse.User
 
 	log.Info().
 		Str("user_id", user.UserID).
 		Str("username", user.Username).
 		Msg("User details retrieved successfully")
+
+	log.Debug().
+		Str("User response", fmt.Sprintf("%+v", user)).
+		Msg("User response data")
+
 	return &user, nil
 }
 

@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+//Notes: requires user to be in docker group sudo usermod -aG docker $user
+
 // Init initializes the root command.
 func init() {
 	// Define "compose" command
@@ -50,7 +52,7 @@ func createTestEnv() *cobra.Command {
 			uDetails := userParser.UserDetails{
 				TargetUser:             tuser,
 				Role:                   "All Users",
-				AssignedContainerTag:   "postgres:14-alpine",
+				AssignedContainerTag:   "kasmweb/chrome:1.16.1",
 				KasmSessionOfContainer: "",
 				EnvironmentArgs:        make(map[string]string),
 			}
@@ -76,12 +78,12 @@ func createTestEnv() *cobra.Command {
 			encoder.Close()
 
 			//Create ssh config
-			sshConfig, _ := sshmanager.NewSSHConfig("thor", "stark", "192.168.56.103", 22, "C:\\Users\\cjhue\\.ssh\\known_hosts", 10*time.Second)
+			sshConfig, _ := sshmanager.NewSSHConfig("thor", "stark", "192.168.120.5", 22, "C:\\Users\\Thor\\.ssh\\known_hosts", 10*time.Second)
 
 			//Create KASM API
-			kApi := webApi.NewKasmAPI("https://192.168.56.103", "kvfrXBk9B8cl", "6YKSwVr74GAv23wuj3cS0vRbm9O4qmwE", true, 10*time.Second)
+			kApi := webApi.NewKasmAPI("https://192.168.120.5", "C6QmU5ohTUIE", "91MRn9E7FyBSPJ5HtexWrubIG3SYLkB5", true, 10*time.Second)
 
-			ctx, _ := context.WithTimeout(context.Background(), 100*time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), 10000*time.Second)
 			err = procedures.CreateTestEnvironment(ctx, tempFile.Name(), sshConfig, kApi)
 			if err != nil {
 				return

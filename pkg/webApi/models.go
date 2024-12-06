@@ -56,6 +56,10 @@ type UserResponse struct {
 	Notes        *string       `json:"notes,omitempty"` // Added Notes field based on new API
 }
 
+type GetUserResponse struct {
+	User UserResponse `json:"user"`
+}
+
 // UserAttributes represents a user's attributes (preferences).
 type UserAttributes struct {
 	SSHPublicKey       string  `json:"ssh_public_key"`
@@ -204,6 +208,7 @@ type ExecConfig struct {
 type Image struct {
 	ImageID                 string                 `json:"image_id"`
 	FriendlyName            string                 `json:"friendly_name"`
+	ImageTag                string                 `json:"name"`
 	Description             string                 `json:"description"`
 	Memory                  int64                  `json:"memory"`
 	Cores                   float64                `json:"cores"`

@@ -152,7 +152,8 @@ func CreateTestEnvironment(ctx context.Context, userConfigurationFilePath string
 
 		// Step 3.5: Update the YAML file with UserID and KasmSessionOfContainer
 		// TODO: Implement logic to obtain the actual KasmSessionOfContainer
-		kasmRequestResponse, err := kasmApi.RequestKasmSession(ctx, user.TargetUser.UserID, user.AssignedContainerTag, user.EnvironmentArgs)
+		iamgeID, _ := getImageIDbyTag(ctx, kasmApi, user.AssignedContainerTag)
+		kasmRequestResponse, err := kasmApi.RequestKasmSession(ctx, user.TargetUser.UserID, iamgeID, user.EnvironmentArgs)
 		if err != nil {
 			log.Error().
 				Err(err).

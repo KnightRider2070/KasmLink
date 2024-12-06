@@ -74,13 +74,15 @@ func createOrGetUser(ctx context.Context, api *webApi.KasmAPI, user userParser.U
 		Msg("Attempting to retrieve or create user via KASM API")
 
 	// Step 1: Try to retrieve the user by username
-	userExisting, err := api.GetUser(ctx, "", user.TargetUser.Username)
+	userExisting, err := api.GetUser(ctx, user.TargetUser.UserID, user.TargetUser.Username)
 	if err != nil {
 		// Assuming that an error containing "not found" indicates the user does not exist
 		if userExisting != nil {
 			log.Info().
-				Str("username", user.TargetUser.Username).
+				Str("username", userExisting.Username).
+				Str("user_id", userExisting.UserID).
 				Msg("User already exists in KASM API")
+
 			return userExisting.UserID, nil
 		}
 
@@ -120,10 +122,10 @@ func createOrGetUser(ctx context.Context, api *webApi.KasmAPI, user userParser.U
 
 	// User exists; return the existing user ID
 	log.Info().
-		Str("username", user.TargetUser.Username).
-		Str("user_id", user.TargetUser.UserID).
+		Str("username", userExisting.Username).
+		Str("user_id", userExisting.UserID).
 		Msg("User already exists in KASM API")
-	return user.TargetUser.UserID, nil
+	return userExisting.UserID, nil
 }
 
 // getGroupIDByName retrieves the group ID by the role name via KASM API.
@@ -156,4 +158,35 @@ func getGroupIDByName(ctx context.Context, api *webApi.KasmAPI, roleName string)
 		Str("role", roleName).
 		Msg("Group ID not found in KASM API")
 	return "", fmt.Errorf("group ID not found for role: %s", roleName)
+}
+
+func getImageIDbyTag(ctx context.Context, api *webApi.KasmAPI, imageTag string) (string, error) {
+	log.Info().
+		Str("image_tag", imageTag).
+		Msg("Retrieving image ID by tag from KASM API")
+
+	images, err := api.ListImages(ctx)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("image_tag", imageTag).
+			Msg("Failed to list images")
+		return "", fmt.Errorf("failed to list images: %w", err)
+	}
+
+	for _, img := range images {
+		log.Debug().Str("image_tag", imageTag).Str("image_id", img.ImageID).Msg("Checking image")
+		if img.ImageTag == imageTag {
+			log.Info().
+				Str("image_tag", imageTag).
+				Str("image_id", img.ImageID).
+				Msg("Image found by tag")
+			return img.ImageID, nil
+		}
+	}
+
+	log.Warn().
+		Str("image_tag", imageTag).
+		Msg("No matching image found by tag")
+	return "", fmt.Errorf("no image found with tag: %s", imageTag)
 }
