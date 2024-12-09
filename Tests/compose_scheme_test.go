@@ -1,4 +1,4 @@
-package tests
+package Tests
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// TestComposeFileWithFullStructure tests if a full ComposeFile struct with nested structures marshals correctly.
+// TestComposeFileWithFullStructure Tests if a full ComposeFile struct with nested structures marshals correctly.
 func TestComposeFileWithFullStructure(t *testing.T) {
 	composeFile := dockercompose.ComposeFile{
 		Version: "3.8",
@@ -145,7 +145,7 @@ func TestComposeFileWithFullStructure(t *testing.T) {
 	assert.Equal(t, composeFile, unmarshaledComposeFile)
 }
 
-// TestComposeFileWithPartialStructure tests if a ComposeFile struct with partial structures marshals and unmarshals correctly.
+// TestComposeFileWithPartialStructure Tests if a ComposeFile struct with partial structures marshals and unmarshals correctly.
 func TestComposeFileWithPartialStructure(t *testing.T) {
 	composeFile := dockercompose.ComposeFile{
 		Version: "3.8",

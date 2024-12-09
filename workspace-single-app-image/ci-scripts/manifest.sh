@@ -65,7 +65,7 @@ if [[ -z "${REVERT_PIPELINE_ID}" ]]; then
   done
 fi
 
-# Fail job and go no further if tests did not pass
+# Fail job and go no further if Tests did not pass
 if [[ "${FAILED}" == "true" ]]; then
   exit 1
 fi
