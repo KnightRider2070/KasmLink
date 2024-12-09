@@ -59,13 +59,13 @@ if [[ -z "${REVERT_PIPELINE_ID}" ]]; then
       FAILED="true"
     fi
 
-    # Ping gitlab api with link output
+    # Ping gitlab webApi with link output
     curl --request POST --header "PRIVATE-TOKEN:${GITLAB_API_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/statuses/${CI_COMMIT_SHA}?state=${STATE}&name=${NAME}_${ARCH}&target_url=https://kasm-ci.s3.amazonaws.com/${CI_COMMIT_SHA}/${ARCH}/kasmweb/image-cache-private/${ARCH}-${NAME}-${PULL_BRANCH}-${CI_PIPELINE_ID}/index.html"
 
   done
 fi
 
-# Fail job and go no further if tests did not pass
+# Fail job and go no further if Tests did not pass
 if [[ "${FAILED}" == "true" ]]; then
   exit 1
 fi
