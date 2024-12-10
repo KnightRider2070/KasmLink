@@ -15,7 +15,7 @@ type Service struct {
 	ContainerName   string            `yaml:"container_name,omitempty"`    // Optional: name of the container
 	Image           string            `yaml:"image,omitempty"`             // Optional: Docker image to use
 	Build           *BuildConfig      `yaml:"build,omitempty"`             // Optional: build context or options
-	Environment     map[string]string `yaml:"environment,omitempty"`       // Optional: environment variables
+	Environment     interface{}       `yaml:"environment,omitempty"`       // Accepts both []string and map[string]string
 	Ports           []string          `yaml:"ports,omitempty"`             // Optional: port mappings
 	Volumes         []string          `yaml:"volumes,omitempty"`           // Optional: volume mounts
 	Secrets         []string          `yaml:"secrets,omitempty"`           // Optional: secret references
@@ -86,10 +86,10 @@ type Capabilities struct {
 
 // NetworkConfig holds network-related settings for a service.
 type NetworkConfig struct {
-	Mode       string   `yaml:"network_mode,omitempty"` // Optional: network mode
-	Networks   []string `yaml:"networks,omitempty"`     // Optional: list of networks
-	Links      []string `yaml:"links,omitempty"`        // Optional: links to other services
-	MacAddress string   `yaml:"mac_address,omitempty"`  // Optional: MAC address
+	Mode       string      `yaml:"network_mode,omitempty"` // Optional: network mode
+	Networks   interface{} `yaml:"networks,omitempty"`     // Accepts both []string and map[string]interface{}
+	Links      []string    `yaml:"links,omitempty"`        // Optional: links to other services
+	MacAddress string      `yaml:"mac_address,omitempty"`  // Optional: MAC address
 }
 
 // Healthcheck holds health check settings for a service.
