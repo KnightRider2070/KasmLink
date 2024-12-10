@@ -8,6 +8,7 @@ import (
 )
 
 // RequestKasmSession requests a new Kasm session.
+// Note: requires api key with "Users Auth Session" and "User" permissions
 func (api *KasmAPI) RequestKasmSession(ctx context.Context, userID string, imageID string, envArgs map[string]string) (*RequestKasmResponse, error) {
 	endpoint := "/api/public/request_kasm"
 	log.Info().
@@ -64,13 +65,21 @@ func (api *KasmAPI) RequestKasmSession(ctx context.Context, userID string, image
 }
 
 // GetKasmStatus retrieves the status of an existing Kasm session.
-func (api *KasmAPI) GetKasmStatus(ctx context.Context, req GetKasmStatusRequest) (*GetKasmStatusResponse, error) {
+func (api *KasmAPI) GetKasmStatus(ctx context.Context, userId, kasmId string, skipAgentCheck bool) (*GetKasmStatusResponse, error) {
 	endpoint := "/api/public/get_kasm_status"
 	log.Info().
 		Str("method", "POST").
 		Str("endpoint", endpoint).
-		Str("kasm_id", req.KasmID).
+		Str("kasm_id", kasmId).
 		Msg("Getting status for Kasm session")
+
+	req := GetKasmStatusRequest{
+		APIKey:         api.APIKey,
+		APIKeySecret:   api.APIKeySecret,
+		UserID:         userId,
+		KasmID:         kasmId,
+		SkipAgentCheck: skipAgentCheck,
+	}
 
 	// Make POST request using the enhanced MakePostRequest method
 	responseBytes, err := api.MakePostRequest(ctx, endpoint, req)
@@ -107,17 +116,26 @@ func (api *KasmAPI) GetKasmStatus(ctx context.Context, req GetKasmStatusRequest)
 }
 
 // DestroyKasmSession destroys an existing Kasm session.
-func (api *KasmAPI) DestroyKasmSession(ctx context.Context, req DestroyKasmRequest) error {
+// Note: Requires api permissions "Users Auth Session","User"
+func (api *KasmAPI) DestroyKasmSession(ctx context.Context, kasmId, userId string) error {
 	endpoint := "/api/public/destroy_kasm"
 	log.Info().
 		Str("method", "POST").
 		Str("endpoint", endpoint).
-		Str("kasm_id", req.KasmID).
-		Str("user_id", req.UserID).
+		Str("kasm_id", kasmId).
+		Str("user_id", userId).
 		Msg("Destroying Kasm session")
 
+	req := DestroyKasmRequest{
+		APIKey:       api.APIKey,
+		APIKeySecret: api.APIKeySecret,
+		KasmID:       kasmId,
+		UserID:       userId,
+	}
+
+	var destroyResponse DestroyKasmResponse
 	// Make POST request using the enhanced MakePostRequest method
-	_, err := api.MakePostRequest(ctx, endpoint, req)
+	responseBytes, err := api.MakePostRequest(ctx, endpoint, req)
 	if err != nil {
 		log.Error().
 			Err(err).
@@ -125,6 +143,27 @@ func (api *KasmAPI) DestroyKasmSession(ctx context.Context, req DestroyKasmReque
 			Str("endpoint", endpoint).
 			Str("kasm_id", req.KasmID).
 			Str("user_id", req.UserID).
+			Msg("Error destroying Kasm session")
+		return fmt.Errorf("error destroying Kasm session: %w", err)
+	}
+
+	if err := json.Unmarshal(responseBytes, &destroyResponse); err != nil {
+		log.Error().
+			Err(err).
+			Str("method", "POST").
+			Str("endpoint", endpoint).
+			Str("kasm_id", req.KasmID).
+			Msg("Failed to decode Kasm destroy response")
+	}
+
+	if destroyResponse.ErrorMessage != "" {
+		log.Error().
+			Err(err).
+			Str("method", "POST").
+			Str("endpoint", endpoint).
+			Str("kasm_id", req.KasmID).
+			Str("user_id", req.UserID).
+			Str("error_message", destroyResponse.ErrorMessage).
 			Msg("Error destroying Kasm session")
 		return fmt.Errorf("error destroying Kasm session: %w", err)
 	}

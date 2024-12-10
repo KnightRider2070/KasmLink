@@ -8,7 +8,7 @@ import (
 )
 
 // ListImages fetches the available images from the KASM API.
-// It utilizes the enhanced MakePostRequest method with context support.
+// Note: requires api key with "Images View" permission
 func (api *KasmAPI) ListImages(ctx context.Context) ([]Image, error) {
 	endpoint := "/api/public/get_images"
 	log.Info().

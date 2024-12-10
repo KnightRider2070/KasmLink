@@ -40,6 +40,7 @@ type GetUsersResponse struct {
 }
 
 // CreateUser creates a new KASM user.
+// Note: Requires api permission "Users Create"
 func (api *KasmAPI) CreateUser(ctx context.Context, user TargetUser) (*UserResponse, error) {
 	endpoint := "/api/public/create_user"
 	log.Info().
@@ -68,8 +69,8 @@ func (api *KasmAPI) CreateUser(ctx context.Context, user TargetUser) (*UserRespo
 	}
 
 	// Parse the response into UserResponse struct
-	var createdUser UserResponse
-	if err := json.Unmarshal(responseBytes, &createdUser); err != nil {
+	var users GetUserResponse
+	if err := json.Unmarshal(responseBytes, &users); err != nil {
 		log.Error().
 			Err(err).
 			Str("method", "POST").
@@ -79,6 +80,8 @@ func (api *KasmAPI) CreateUser(ctx context.Context, user TargetUser) (*UserRespo
 		return nil, fmt.Errorf("failed to decode create user response: %v", err)
 	}
 
+	createdUser := users.User
+
 	log.Info().
 		Str("user_id", createdUser.UserID).
 		Str("username", createdUser.Username).
@@ -87,6 +90,7 @@ func (api *KasmAPI) CreateUser(ctx context.Context, user TargetUser) (*UserRespo
 }
 
 // GetUser retrieves user details by userID or username.
+// Note: Requires api key permission "Users View"
 func (api *KasmAPI) GetUser(ctx context.Context, userID, username string) (*UserResponse, error) {
 	endpoint := "/api/public/get_user"
 	log.Info().
@@ -196,6 +200,8 @@ type UpdateUserRequest struct {
 }
 
 // UpdateUser updates an existing user's details.
+// Note: Requires api permissions "Users Modify" or to update Global Admin "Users Modify Admin"
+// Requires also username and userId to be present in user TargetUser
 func (api *KasmAPI) UpdateUser(ctx context.Context, user TargetUser) (*UserResponse, error) {
 	endpoint := "/api/public/update_user"
 	log.Info().
@@ -224,8 +230,8 @@ func (api *KasmAPI) UpdateUser(ctx context.Context, user TargetUser) (*UserRespo
 	}
 
 	// Parse the response into UserResponse struct
-	var updatedUser UserResponse
-	if err := json.Unmarshal(responseBytes, &updatedUser); err != nil {
+	var getUserResponse GetUserResponse
+	if err := json.Unmarshal(responseBytes, &getUserResponse); err != nil {
 		log.Error().
 			Err(err).
 			Str("method", "POST").
@@ -234,6 +240,8 @@ func (api *KasmAPI) UpdateUser(ctx context.Context, user TargetUser) (*UserRespo
 			Msg("Failed to decode update user response")
 		return nil, fmt.Errorf("failed to decode update user response: %v", err)
 	}
+
+	updatedUser := getUserResponse.User
 
 	log.Info().
 		Str("user_id", updatedUser.UserID).
@@ -256,6 +264,7 @@ type DeleteUserTarget struct {
 }
 
 // DeleteUser removes a user by userID with optional force.
+// Note: Requires api key permission "Users Delete", "Users Modify" and "Users Modify Admin" to delete Global Admin
 func (api *KasmAPI) DeleteUser(ctx context.Context, userID string, force bool) error {
 	endpoint := "/api/public/delete_user"
 	log.Info().
@@ -307,6 +316,10 @@ type GetUserAttributesTarget struct {
 	UserID string `json:"user_id"`
 }
 
+type GetUserAttributesResponse struct {
+	UserAttributes UserAttributes `json:"user_attributes"`
+}
+
 // GetUserAttributes retrieves the attributes of a user.
 func (api *KasmAPI) GetUserAttributes(ctx context.Context, userID string) (*UserAttributes, error) {
 	endpoint := "/api/public/get_attributes"
@@ -338,7 +351,7 @@ func (api *KasmAPI) GetUserAttributes(ctx context.Context, userID string) (*User
 	}
 
 	// Parse the response into UserAttributes struct
-	var attributes UserAttributes
+	var attributes GetUserAttributesResponse
 	if err := json.Unmarshal(responseBytes, &attributes); err != nil {
 		log.Error().
 			Err(err).
@@ -349,12 +362,14 @@ func (api *KasmAPI) GetUserAttributes(ctx context.Context, userID string) (*User
 		return nil, fmt.Errorf("failed to decode user attributes response: %v", err)
 	}
 
+	userAttributes := attributes.UserAttributes
+
 	log.Info().
 		Str("method", "POST").
 		Str("endpoint", endpoint).
 		Str("user_id", userID).
 		Msg("User attributes retrieved successfully")
-	return &attributes, nil
+	return &userAttributes, nil
 }
 
 // LogoutUserRequest represents the payload for logging out a user.
@@ -415,6 +430,7 @@ type UpdateUserAttributesRequest struct {
 }
 
 // UpdateUserAttributes updates a user's attributes.
+// Notes: Requires permissions "User Modify" and "User Modify Admin" if Global Admin
 func (api *KasmAPI) UpdateUserAttributes(ctx context.Context, attributes UserAttributes) error {
 	endpoint := "/api/public/update_user_attributes"
 	log.Info().
@@ -465,6 +481,7 @@ type AddUserToGroupTarget struct {
 }
 
 // AddUserToGroup adds a user to a specific group.
+// Notes: Requires api key permissions "Groups Modify" and "Groups Modify System" for global admin
 func (api *KasmAPI) AddUserToGroup(ctx context.Context, userID, groupID string) error {
 	endpoint := "/api/public/add_user_group"
 	log.Info().
@@ -588,6 +605,7 @@ type GenerateLoginLinkResponse struct {
 }
 
 // GenerateLoginLink generates a login link for a user.
+// Note: Requires api key permission "Users Auth Session"
 func (api *KasmAPI) GenerateLoginLink(ctx context.Context, userID string) (string, error) {
 	endpoint := "/api/public/get_login"
 	log.Info().

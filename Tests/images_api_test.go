@@ -25,5 +25,5 @@ func TestListImages(t *testing.T) {
 	}
 
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(imagesAvailable))
+	assert.Equal(t, 1, len(imagesAvailable))
 }

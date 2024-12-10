@@ -42,18 +42,18 @@ type KasmServerInfo struct {
 type UserResponse struct {
 	UserID       string        `json:"user_id"`
 	Username     string        `json:"username"`
-	FirstName    *string       `json:"first_name,omitempty"` // Pointer to handle null
-	LastName     *string       `json:"last_name,omitempty"`  // Pointer to handle null
-	Phone        *string       `json:"phone,omitempty"`      // Pointer to handle null
-	Organization *string       `json:"organization,omitempty"`
+	FirstName    string        `json:"first_name,omitempty"` // Pointer to handle null
+	LastName     string        `json:"last_name,omitempty"`  // Pointer to handle null
+	Phone        string        `json:"phone,omitempty"`      // Pointer to handle null
+	Organization string        `json:"organization,omitempty"`
 	Realm        string        `json:"realm"`
-	LastSession  *string       `json:"last_session,omitempty"`
+	LastSession  string        `json:"last_session,omitempty"`
 	Groups       []UserGroup   `json:"groups"`
 	Kasms        []KasmSession `json:"kasms"`
 	Disabled     bool          `json:"disabled"`
 	Locked       bool          `json:"locked"`
 	Created      string        `json:"created"`
-	Notes        *string       `json:"notes,omitempty"` // Added Notes field based on new API
+	Notes        string        `json:"notes,omitempty"` // Added Notes field based on new API
 }
 
 type GetUserResponse struct {
@@ -62,13 +62,13 @@ type GetUserResponse struct {
 
 // UserAttributes represents a user's attributes (preferences).
 type UserAttributes struct {
-	SSHPublicKey       string  `json:"ssh_public_key"`
-	ShowTips           bool    `json:"show_tips"`
-	UserID             string  `json:"user_id"`
-	ToggleControlPanel bool    `json:"toggle_control_panel"`
-	ChatSFX            bool    `json:"chat_sfx"`
-	DefaultImage       *string `json:"default_image,omitempty"`
-	AutoLoginKasm      *bool   `json:"auto_login_kasm,omitempty"`
+	SSHPublicKey       string `json:"ssh_public_key"`
+	ShowTips           bool   `json:"show_tips"`
+	UserID             string `json:"user_id"`
+	ToggleControlPanel bool   `json:"toggle_control_panel"`
+	ChatSFX            bool   `json:"chat_sfx"`
+	DefaultImageId     string `json:"default_image,omitempty"` // Needs to be ImageId not docker image tag
+	AutoLoginKasm      bool   `json:"auto_login_kasm,omitempty"`
 	// Add other necessary fields as per API specifications
 }
 
@@ -82,9 +82,9 @@ type RequestKasmRequest struct {
 	ImageID        string            `json:"image_id"`
 	EnableSharing  bool              `json:"enable_sharing"`
 	Environment    map[string]string `json:"environment,omitempty"`
-	ClientLanguage *string           `json:"client_language,omitempty"`
-	ClientTimezone *string           `json:"client_timezone,omitempty"`
-	KasmURL        *string           `json:"kasm_url,omitempty"`
+	ClientLanguage string            `json:"client_language,omitempty"`
+	ClientTimezone string            `json:"client_timezone,omitempty"`
+	KasmURL        string            `json:"kasm_url,omitempty"`
 }
 
 // RequestKasmResponse represents the response when a Kasm session is requested.
@@ -139,10 +139,10 @@ type Port struct {
 
 // ClientSettings represents client-specific settings for a Kasm session.
 type ClientSettings struct {
-	AllowKasmAudio         bool `json:"allow_kasm_audio"`
-	IdleDisconnect         int  `json:"idle_disconnect"`
-	AllowKasmMicrophone    bool `json:"allow_kasm_microphone"`
-	AllowPersistentProfile bool `json:"allow_persistent_profile"`
+	AllowKasmAudio         bool    `json:"allow_kasm_audio"`
+	IdleDisconnect         float64 `json:"idle_disconnect"`
+	AllowKasmMicrophone    bool    `json:"allow_kasm_microphone"`
+	AllowPersistentProfile bool    `json:"allow_persistent_profile"`
 }
 
 // DestroyKasmRequest represents the request to destroy a Kasm session.
@@ -151,6 +151,10 @@ type DestroyKasmRequest struct {
 	APIKeySecret string `json:"api_key_secret"`
 	KasmID       string `json:"kasm_id"`
 	UserID       string `json:"user_id"`
+}
+
+type DestroyKasmResponse struct {
+	ErrorMessage string `json:"error_message"`
 }
 
 // ExecCommandRequest represents the request to execute a command inside a Kasm session.
