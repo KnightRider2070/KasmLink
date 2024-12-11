@@ -9,7 +9,7 @@ var password = "stark"
 var knwHosts = "C:\\Users\\cjhue\\.ssh\\known_hosts"
 
 //Create ssh config
-//sshConfig, _ := sshmanager.NewSSHConfig("thor", "stark", "192.168.120.5", 22, "C:\\Users\\Thor\\.ssh\\known_hosts", 10*time.Second)
+//sshConfig, _ := sshmanager.NewSSHConfig(user, password, hostIp, 22, knwHosts, 10*time.Second)
 
 //Create KASM API
-//kApi := webApi.NewKasmAPI("https://192.168.120.5", "C6QmU5ohTUIE", "91MRn9E7FyBSPJ5HtexWrubIG3SYLkB5", true, 50*time.Second)
+//kApi := webApi.NewKasmAPI(baseUrl, apiSecret, apiKeySecret, true, 50*time.Second)

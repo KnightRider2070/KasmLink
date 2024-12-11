@@ -105,5 +105,6 @@ func SetupRegistry(ctx context.Context, targetSSH *sshmanager.SSHConfig, registr
 	}
 
 	log.Info().Msg("Registry container setup successfully")
+	log.Info().Msgf("Registry URL: http://%s:%s", targetSSH.Host, registryConfig.Port)
 	return nil
 }

@@ -127,6 +127,7 @@ copying embedded templates for each into the specified folder path.`,
 				return
 			}
 			log.Info().Msg("Dockerfiles folder initialized successfully")
+
 		},
 	}
 }
