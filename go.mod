@@ -6,6 +6,7 @@ require (
 	github.com/docker/docker v27.3.1+incompatible
 	github.com/fatih/color v1.18.0
 	github.com/google/go-github/v43 v43.0.0
+	github.com/pkg/sftp v1.13.7
 	github.com/rs/zerolog v1.33.0
 	github.com/spf13/cobra v1.8.1
 	golang.org/x/net v0.31.0
@@ -26,6 +27,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/kr/fs v0.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect

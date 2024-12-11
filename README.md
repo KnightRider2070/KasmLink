@@ -52,6 +52,8 @@ This command will provide you with a list of all available subcommands and their
 
 ## Configuration
 
+````There is no bug in the code, it's a configuration issue ;)````
+
 KasmLink interacts with your Kasm server using an API key and secret. You can either:
 
 1. Update the `commands` package code to include your server URL, API key, and secret.
