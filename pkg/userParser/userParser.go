@@ -19,7 +19,10 @@ type UserDetails struct {
 	TargetUser             webApi.TargetUser `yaml:"target_user"`
 	Role                   string            `yaml:"role"`
 	AssignedContainerTag   string            `yaml:"assigned_container_tag"`
+	AssignedContainerId    string            `yaml:"assigned_container_id"`
 	KasmSessionOfContainer string            `yaml:"kasm_session_of_container"`
+	Network                string            `yaml:"network"`
+	VolumeMounts           map[string]string `yaml:"volume-mounts"`
 	EnvironmentArgs        map[string]string `yaml:"environment_args"`
 }
 
@@ -50,7 +53,7 @@ func (u *UserParser) LoadConfig(path string) (*UsersConfig, error) {
 }
 
 // UpdateUserConfig updates the user configuration.
-func (u *UserParser) UpdateUserConfig(path, username, newUserID, newKasmSessionID string) error {
+func (u *UserParser) UpdateUserConfig(path, username, newUserID, newKasmSessionID, containerId string) error {
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
 
@@ -65,10 +68,11 @@ func (u *UserParser) UpdateUserConfig(path, username, newUserID, newKasmSessionI
 	found := false
 	for i, user := range config.UserDetails {
 		if user.TargetUser.Username == username {
+			config.UserDetails[i].AssignedContainerId = containerId
 			config.UserDetails[i].TargetUser.UserID = newUserID
 			config.UserDetails[i].KasmSessionOfContainer = newKasmSessionID
 			found = true
-			log.Printf("Updated user %s with new UserID %s and KasmSessionID %s\n", username, newUserID, newKasmSessionID)
+			log.Printf("Updated user %s with new UserID %s, KasmSessionID %s and ContainerId %s\n", username, newUserID, newKasmSessionID, containerId)
 			break
 		}
 	}
