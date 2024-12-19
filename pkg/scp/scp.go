@@ -1,111 +1,140 @@
 package shadowscp
 
 import (
+	"context"
 	"fmt"
-	"github.com/rs/zerolog/log"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"os"
-	"path/filepath"
+	"time"
+
+	"github.com/pkg/sftp"
+	"github.com/rs/zerolog/log"
+	sshmanager "kasmlink/pkg/sshmanager"
 )
 
-// ShadowCopyFile copies a local file to a remote node via SSH.
-func ShadowCopyFile(agentName, secretKey, nodeAddress, localFilePath, remoteDir string) error {
+// ShadowCopyFile copies a local file to a remote node via SFTP over SSH.
+func ShadowCopyFile(ctx context.Context, localFilePath, remoteDir string, sshConfig *sshmanager.SSHConfig) error {
 	log.Info().
-		Str("agent_name", agentName).
-		Str("node_address", nodeAddress).
+		Str("username", sshConfig.Username).
+		Str("host", sshConfig.Host).
+		Int("port", sshConfig.Port).
 		Str("local_file", localFilePath).
 		Str("remote_dir", remoteDir).
-		Msg("Starting file copy to remote node via SSH")
+		Msg("Starting file copy to remote node via SSH using SFTP")
 
-	// Create the SSH client configuration
-	config := &ssh.ClientConfig{
-		User: agentName,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(secretKey),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	retries := 3
+	delay := 2 * time.Second
+
+	for attempt := 1; attempt <= retries; attempt++ {
+		err := performSFTPCopy(ctx, localFilePath, remoteDir, sshConfig)
+		if err == nil {
+			log.Info().Msg("File copy completed successfully")
+			return nil
+		}
+
+		log.Warn().
+			Err(err).
+			Int("attempt", attempt).
+			Int("max_retries", retries).
+			Dur("delay", delay).
+			Msg("Failed to copy file, retrying")
+
+		if attempt < retries {
+			select {
+			case <-time.After(delay):
+				// Continue to the next retry
+			case <-ctx.Done():
+				log.Error().
+					Err(ctx.Err()).
+					Msg("File copy canceled due to context cancellation")
+				return fmt.Errorf("file copy canceled: %w", ctx.Err())
+			}
+		}
 	}
 
-	// Connect to the remote node
-	shadowClient, err := ssh.Dial("tcp", nodeAddress, config)
+	return fmt.Errorf("failed to copy file after %d retries", retries)
+}
+
+func performSFTPCopy(ctx context.Context, localFilePath, remoteDir string, sshConfig *sshmanager.SSHConfig) error {
+	log.Debug().Msg("Establishing SSH connection")
+	sshClient, err := sshmanager.NewSSHClient(ctx, sshConfig)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to establish SSH connection")
-		return fmt.Errorf("failed to dial SSH: %v", err)
+		return fmt.Errorf("failed to establish SSH connection: %w", err)
 	}
-	defer shadowClient.Close()
+	defer func() {
+		if cerr := sshClient.Close(); cerr != nil {
+			log.Error().Err(cerr).Msg("Failed to close SSH client")
+		}
+	}()
 	log.Debug().Msg("SSH connection established")
 
-	// Create a new session for SCP
-	shadowSession, err := shadowClient.NewSession()
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to create SSH session")
-		return fmt.Errorf("failed to create SSH session: %v", err)
+	client := sshClient.GetClient()
+	if client == nil {
+		return fmt.Errorf("SSH client is nil")
 	}
-	defer shadowSession.Close()
-	log.Debug().Msg("SSH session created")
 
-	// Open the local file
+	// Create SFTP client
+	log.Debug().Msg("Creating SFTP client")
+	sftpClient, err := sftp.NewClient(client)
+	if err != nil {
+		return fmt.Errorf("failed to create SFTP client: %w", err)
+	}
+	defer func() {
+		if cerr := sftpClient.Close(); cerr != nil {
+			log.Error().Err(cerr).Msg("Failed to close SFTP client")
+		}
+	}()
+	log.Debug().Msg("SFTP client created successfully")
+
+	// Construct remote file path
+	remoteFilePath := remoteDir + "/" + fileNameFromPath(localFilePath)
+
+	// Open local file
+	log.Debug().Str("file", localFilePath).Msg("Opening local file")
 	localFile, err := os.Open(localFilePath)
 	if err != nil {
-		log.Error().Err(err).Str("local_file", localFilePath).Msg("Failed to open local file")
-		return fmt.Errorf("failed to open local file: %v", err)
+		return fmt.Errorf("failed to open local file: %w", err)
 	}
 	defer localFile.Close()
 
-	// Get the file info (to obtain size and permissions)
-	fileInfo, err := localFile.Stat()
+	// Create (or overwrite) remote file
+	log.Debug().Str("remote_file", remoteFilePath).Msg("Creating remote file")
+	remoteFile, err := sftpClient.Create(remoteFilePath)
 	if err != nil {
-		log.Error().Err(err).Str("local_file", localFilePath).Msg("Failed to get file info")
-		return fmt.Errorf("could not stat local file: %v", err)
+		return fmt.Errorf("failed to create remote file: %w", err)
 	}
-	log.Debug().Int64("file_size", fileInfo.Size()).Str("permissions", fileInfo.Mode().String()).Msg("Local file details retrieved")
+	defer remoteFile.Close()
 
-	// Prepare the SCP command to receive the file on the remote node
-	targetFileName := filepath.Base(localFilePath)
-	command := fmt.Sprintf("scp -t %s/%s", remoteDir, targetFileName)
+	// Copy local file to remote file
+	log.Debug().
+		Str("local_file", localFilePath).
+		Str("remote_file", remoteFilePath).
+		Msg("Copying file via SFTP")
 
-	// Set up stdin pipe to the session (for sending file metadata and contents)
-	stdinPipe, err := shadowSession.StdinPipe()
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to set up stdin pipe for SCP")
-		return fmt.Errorf("failed to set up stdin for SCP: %v", err)
-	}
-
-	// Start the SCP session
-	if err := shadowSession.Start(command); err != nil {
-		log.Error().Err(err).Str("command", command).Msg("Failed to start SCP command")
-		return fmt.Errorf("failed to start SCP command: %v", err)
-	}
-	log.Info().Str("command", command).Msg("SCP command started on remote node")
-
-	// Send the file metadata (size and permissions)
-	fmt.Fprintf(stdinPipe, "C%#o %d %s\n", fileInfo.Mode().Perm(), fileInfo.Size(), targetFileName)
-	log.Debug().Str("target_file_name", targetFileName).Msg("Sent file metadata")
-
-	// Send the file contents
-	_, err = io.Copy(stdinPipe, localFile)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to copy file contents")
-		return fmt.Errorf("failed to copy file contents: %v", err)
-	}
-	log.Debug().Msg("File contents sent successfully")
-
-	// Signal EOF to the SCP session and close stdin
-	fmt.Fprint(stdinPipe, "\x00")
-	stdinPipe.Close()
-	log.Debug().Msg("EOF signal sent, closing stdin")
-
-	// Wait for the session to finish
-	if err := shadowSession.Wait(); err != nil {
-		log.Error().Err(err).Msg("SCP session failed to complete")
-		return fmt.Errorf("failed to complete SCP session: %v", err)
+	if _, err := io.Copy(remoteFile, localFile); err != nil {
+		return fmt.Errorf("failed to copy file: %w", err)
 	}
 
 	log.Info().
 		Str("local_file", localFilePath).
-		Str("node_address", nodeAddress).
-		Str("remote_dir", remoteDir).
-		Msg("File copied successfully to remote node")
+		Str("remote_file", remoteFilePath).
+		Msg("File transferred successfully via SFTP")
 	return nil
+}
+
+func fileNameFromPath(path string) string {
+	// Simple helper to extract filename from a path
+	// without adding extra dependencies.
+	i := len(path) - 1
+	for i >= 0 && (path[i] == '/' || path[i] == '\\') {
+		i--
+	}
+	if i < 0 {
+		return ""
+	}
+	start := i
+	for start >= 0 && path[start] != '/' && path[start] != '\\' {
+		start--
+	}
+	return path[start+1:]
 }

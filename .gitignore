@@ -13,6 +13,7 @@
 
 # Test binary, built with `go test -c`
 *.test
+vendor
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
@@ -26,3 +27,4 @@ go.work.sum
 
 #Image Exports
 kasm-suse-vscode.tar
+

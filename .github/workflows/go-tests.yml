@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: go mod tidy && go mod download
 
-      # Linux-specific tests
+      # Linux-specific Tests
       - name: Run Unit Tests with Race Detection on Linux
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -45,7 +45,7 @@ jobs:
           go test -v -race ./... -coverprofile=coverage.out | tee test_output.txt
         shell: bash
 
-      # Windows-specific tests
+      # Windows-specific Tests
       - name: Run Unit Tests on Windows
         if: matrix.os == 'windows-latest'
         run: |
