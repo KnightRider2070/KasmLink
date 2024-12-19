@@ -19,9 +19,7 @@ func createKasmWorkspace(ctx context.Context, imageDetail webApi.ImageDetail, de
 
 	// Serialize run configuration to JSON string
 	runConfig := webApi.DockerRunConfig{
-		Environment: details.EnvironmentArgs, // Environment variables
-		ExtraHosts:  map[string]string{},     // Add extra hosts if necessary
-		DNS:         []string{},              // Add custom DNS settings if necessary
+		Environment: details.EnvironmentArgs,
 	}
 	runConfigJSON, err := json.Marshal(runConfig)
 	if err != nil {
