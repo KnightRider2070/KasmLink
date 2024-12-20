@@ -169,7 +169,7 @@ func CreateTestEnvironment(ctx context.Context, userConfigurationFilePath string
 			Str("url: ", kasmRequestResponse.KasmURL).
 			Msg("Updating user configuration in YAML file")
 
-		if err := userParserInstance.UpdateUserConfig(userConfigurationFilePath, user.TargetUser.Username, user.TargetUser.UserID, kasmRequestResponse.KasmID); err != nil {
+		if err := userParserInstance.UpdateUserConfig(userConfigurationFilePath, user.TargetUser.Username, user.TargetUser.UserID, kasmRequestResponse.KasmID, user.AssignedContainerId); err != nil {
 			log.Error().
 				Err(err).
 				Str("username", user.TargetUser.Username).

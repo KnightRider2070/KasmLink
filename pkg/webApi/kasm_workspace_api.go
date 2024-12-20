@@ -35,7 +35,7 @@ type TargetImage struct {
 	IsRemoteApp            bool            `json:"is_remote_app,omitempty"`
 	LaunchConfig           json.RawMessage `json:"launch_config,omitempty"`
 	LinkURL                *string         `json:"link_url,omitempty"`
-	Memory                 int64           `json:"memory"`
+	Memory                 int             `json:"memory"`
 	Name                   string          `json:"name"`
 	Notes                  string          `json:"notes,omitempty"`
 	OverrideEgressGateways bool            `json:"override_egress_gateways,omitempty"`
@@ -77,7 +77,7 @@ type ImageDetail struct {
 	Enabled                   bool                   `json:"enabled"`
 	FriendlyName              string                 `json:"friendly_name"`
 	Hash                      *string                `json:"hash,omitempty"`
-	Memory                    int64                  `json:"memory"`
+	Memory                    int                    `json:"memory"`
 	Name                      string                 `json:"name"`
 	XRes                      int                    `json:"x_res"`
 	YRes                      int                    `json:"y_res"`
@@ -257,6 +257,8 @@ type UlimitConfig struct {
 type VolumeConfig struct {
 	Bind string `json:"bind,omitempty"` // The path to mount the volume inside the container
 	Mode string `json:"mode,omitempty"` // Either rw to mount the volume read/write, or ro to mount it read-only.
+	Gid  int    `json:"gid,omitempty"`  // Default GID
+	Uid  int    `json:"uid,omitempty"`  // Default UID
 }
 
 // Response represents the full response structure containing the image details.

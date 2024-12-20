@@ -133,16 +133,28 @@ func parseVolumeMounts(u userParser.UserDetails) (map[string]webApi.VolumeConfig
 	volumeConfigs := make(map[string]webApi.VolumeConfig)
 
 	for hostPath, containerPathAndMode := range u.VolumeMounts {
+		// Split the value on ':', expecting containerPath:mode format
 		parts := strings.Split(containerPathAndMode, ":")
-		if len(parts) != 3 {
-			return nil, fmt.Errorf("invalid volume mount format: %s", containerPathAndMode)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid volume mount format: %s (expected format: 'containerPath:mode')", containerPathAndMode)
 		}
 
-		volumeConfig := webApi.VolumeConfig{
-			Bind: parts[0] + ":" + parts[1],
-			Mode: parts[2],
+		containerPath, mode := parts[0], parts[1]
+
+		// Validate mode
+		if mode != "rw" && mode != "ro" {
+			return nil, fmt.Errorf("invalid volume mount mode: %s (expected 'rw' or 'ro')", mode)
 		}
-		volumeConfigs[hostPath] = volumeConfig
+
+		// Create a VolumeConfig object
+		volumeConfig := webApi.VolumeConfig{
+			Bind: hostPath, // Host path
+			Mode: mode,     // rw or ro
+			Gid:  1000,     // Default GID
+			Uid:  1000,     // Default UID
+		}
+
+		volumeConfigs[containerPath] = volumeConfig
 	}
 
 	return volumeConfigs, nil

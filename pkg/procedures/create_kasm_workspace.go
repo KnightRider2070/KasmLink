@@ -9,24 +9,24 @@ import (
 	"kasmlink/pkg/webApi"
 )
 
-// createKasmWorkspace creates a workspace based on user-provided YAML file
-func createKasmWorkspace(ctx context.Context, imageDetail webApi.ImageDetail, details userParser.UserDetails, kasmApi *webApi.KasmAPI) error {
-	// Serialize volume mappings to JSON string
-	volumeMappings, err := json.Marshal(details.VolumeMounts)
-	if err != nil {
-		return fmt.Errorf("failed to marshal volume mappings: %w", err)
-	}
+// CreateKasmWorkspace creates a workspace based on user-provided YAML file
+func CreateKasmWorkspace(ctx context.Context, imageDetail webApi.ImageDetail, details userParser.UserDetails, kasmApi *webApi.KasmAPI) error {
 
+	// Parse volume mounts
 	conf, err := parseVolumeMounts(details)
-
 	if err != nil {
 		return fmt.Errorf("failed to parse volume mounts: %w", err)
+	}
+
+	// Serialize volume configurations to JSON
+	volumeMappingsJSON, err := json.Marshal(conf)
+	if err != nil {
+		return fmt.Errorf("failed to marshal volume mappings: %w", err)
 	}
 
 	// Serialize run configuration to JSON string
 	runConfig := webApi.DockerRunConfig{
 		Environment: details.EnvironmentArgs,
-		Volumes:     conf,
 		Network:     details.Network,
 	}
 
@@ -41,10 +41,10 @@ func createKasmWorkspace(ctx context.Context, imageDetail webApi.ImageDetail, de
 		Cores:                 imageDetail.Cores,
 		Memory:                imageDetail.Memory,
 		FriendlyName:          imageDetail.FriendlyName,
-		RestrictNetworkNames:  []string{details.Network}, // Restrict to specified network
-		VolumeMappings:        string(volumeMappings),    // Serialized volume mappings
-		RunConfig:             string(runConfigJSON),     // Serialized run configuration
-		AllowNetworkSelection: false,                     // Allows network selection
+		RestrictNetworkNames:  []string{details.Network},  // Restrict to specified network
+		VolumeMappings:        string(volumeMappingsJSON), // Serialized volume mappings
+		RunConfig:             string(runConfigJSON),      // Serialized run configuration
+		AllowNetworkSelection: false,                      // Allows network selection
 	}
 
 	// Create the request payload
