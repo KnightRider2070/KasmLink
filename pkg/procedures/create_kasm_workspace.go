@@ -17,10 +17,19 @@ func createKasmWorkspace(ctx context.Context, imageDetail webApi.ImageDetail, de
 		return fmt.Errorf("failed to marshal volume mappings: %w", err)
 	}
 
+	conf, err := parseVolumeMounts(details)
+
+	if err != nil {
+		return fmt.Errorf("failed to parse volume mounts: %w", err)
+	}
+
 	// Serialize run configuration to JSON string
 	runConfig := webApi.DockerRunConfig{
 		Environment: details.EnvironmentArgs,
+		Volumes:     conf,
+		Network:     details.Network,
 	}
+
 	runConfigJSON, err := json.Marshal(runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to marshal run configuration: %w", err)
@@ -35,7 +44,7 @@ func createKasmWorkspace(ctx context.Context, imageDetail webApi.ImageDetail, de
 		RestrictNetworkNames:  []string{details.Network}, // Restrict to specified network
 		VolumeMappings:        string(volumeMappings),    // Serialized volume mappings
 		RunConfig:             string(runConfigJSON),     // Serialized run configuration
-		AllowNetworkSelection: true,                      // Allows network selection
+		AllowNetworkSelection: false,                     // Allows network selection
 	}
 
 	// Create the request payload

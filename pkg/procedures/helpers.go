@@ -128,36 +128,24 @@ func createOrGetUser(ctx context.Context, api *webApi.KasmAPI, user userParser.U
 	return userExisting.UserID, nil
 }
 
-// getGroupIDByName retrieves the group ID by the role name via KASM API.
-// NOTE: This function is still in development and does not return useful data yet.
-func getGroupIDByName(ctx context.Context, api *webApi.KasmAPI, roleName string) (string, error) {
-	log.Info().
-		Str("role", roleName).
-		Msg("Retrieving group ID by role name via KASM API")
+// parseVolumeMounts parses the volume mounts from UserDetails and returns a dictionary of VolumeConfig.
+func parseVolumeMounts(u userParser.UserDetails) (map[string]webApi.VolumeConfig, error) {
+	volumeConfigs := make(map[string]webApi.VolumeConfig)
 
-	//TODO: Figure out how to retrieve groups from the API
-	/*groups, err := api.GetGroups(ctx)
-	if err != nil {
-		log.Error().
-			Err(err).
-			Msg("Failed to retrieve groups from KASM API")
-		return "", fmt.Errorf("failed to retrieve groups: %w", err)
+	for hostPath, containerPathAndMode := range u.VolumeMounts {
+		parts := strings.Split(containerPathAndMode, ":")
+		if len(parts) != 3 {
+			return nil, fmt.Errorf("invalid volume mount format: %s", containerPathAndMode)
+		}
+
+		volumeConfig := webApi.VolumeConfig{
+			Bind: parts[0] + ":" + parts[1],
+			Mode: parts[2],
+		}
+		volumeConfigs[hostPath] = volumeConfig
 	}
 
-	for _, group := range groups {
-		if group.Name == roleName {
-			log.Info().
-				Str("role", roleName).
-				Str("group_id", group.ID).
-				Msg("Group ID retrieved successfully")
-			return group.ID, nil
-		}
-	}*/
-
-	log.Error().
-		Str("role", roleName).
-		Msg("Group ID not found in KASM API")
-	return "", fmt.Errorf("group ID not found for role: %s", roleName)
+	return volumeConfigs, nil
 }
 
 func getImageIDbyTag(ctx context.Context, api *webApi.KasmAPI, imageTag string) (string, error) {
