@@ -157,7 +157,7 @@ ENV HOME /home/kasm-user
 WORKDIR $HOME
 RUN mkdir -p $HOME && chown -R 1000:0 $HOME
 
-### Create user exclusively for session recording purposes
+### Create user exclusively for sessions recording purposes
 RUN (groupadd -g 1001 kasm-recorder \
     && useradd -M -u 1001 -g 1001 kasm-recorder \
     && usermod -a -G kasm-recorder) ; exit 0

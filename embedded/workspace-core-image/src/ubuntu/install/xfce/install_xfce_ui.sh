@@ -22,7 +22,7 @@ notify-send "Logout" "Please logout or destroy this desktop using the Kasm Contr
 EOL
 
 # Add a script for launching Thunar with libnss wrapper.
-# This is called by ~.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml
+# This is called by ~.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-sessions.xml
 cat >/usr/bin/execThunar.sh <<EOL
 #!/bin/sh
 . $STARTUPDIR/generate_container_user
