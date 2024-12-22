@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -17,7 +16,7 @@ var noColor = false
 
 // LoadLogo loads the ASCII logo from a file.
 func LoadLogo(filename string) (string, error) {
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		return "", fmt.Errorf("failed to load logo from %s: %v", filename, err)
 	}
@@ -50,6 +49,7 @@ func main() {
 	}
 
 	// Set color preference based on the DEBUG environment variable
+	//For windows use $env:LOGLEVEL="debug"
 	if os.Getenv("DEBUG") != "" {
 		noColor = true
 	}
