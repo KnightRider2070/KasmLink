@@ -128,36 +128,29 @@ func createOrGetUser(ctx context.Context, api *webApi.KasmAPI, user userParser.U
 	return userExisting.UserID, nil
 }
 
-// parseVolumeMounts parses the volume mounts from UserDetails and returns a dictionary of VolumeConfig.
-func parseVolumeMounts(u userParser.UserDetails) (map[string]webApi.VolumeConfig, error) {
-	volumeConfigs := make(map[string]webApi.VolumeConfig)
+func parseVolumeMounts(details userParser.UserDetails) (map[string]webApi.VolumeMapping, error) {
+	volumeMappings := make(map[string]webApi.VolumeMapping)
 
-	for hostPath, containerPathAndMode := range u.VolumeMounts {
-		// Split the value on ':', expecting containerPath:mode format
+	for hostPath, containerPathAndMode := range details.VolumeMounts {
 		parts := strings.Split(containerPathAndMode, ":")
 		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid volume mount format: %s (expected format: 'containerPath:mode')", containerPathAndMode)
+			return nil, fmt.Errorf("invalid volume mount format: %s, expected 'containerPath:mode'", containerPathAndMode)
 		}
 
 		containerPath, mode := parts[0], parts[1]
-
-		// Validate mode
 		if mode != "rw" && mode != "ro" {
-			return nil, fmt.Errorf("invalid volume mount mode: %s (expected 'rw' or 'ro')", mode)
+			return nil, fmt.Errorf("invalid volume mount mode: %s, expected 'rw' or 'ro'", mode)
 		}
 
-		// Create a VolumeConfig object
-		volumeConfig := webApi.VolumeConfig{
-			Bind: hostPath, // Host path
-			Mode: mode,     // rw or ro
-			Gid:  1000,     // Default GID
-			Uid:  1000,     // Default UID
+		volumeMappings[containerPath] = webApi.VolumeMapping{
+			Bind: hostPath,
+			Mode: mode,
+			Gid:  1000,
+			Uid:  1000,
 		}
-
-		volumeConfigs[containerPath] = volumeConfig
 	}
 
-	return volumeConfigs, nil
+	return volumeMappings, nil
 }
 
 func getImageIDbyTag(ctx context.Context, api *webApi.KasmAPI, imageTag string) (string, error) {

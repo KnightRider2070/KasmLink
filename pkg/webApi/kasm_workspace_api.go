@@ -87,7 +87,7 @@ type ImageDetail struct {
 	RestrictToServer          bool                   `json:"restrict_to_server"`
 	ServerID                  *string                `json:"server_id,omitempty"`
 	PersistentProfileConfig   map[string]interface{} `json:"persistent_profile_config,omitempty"`
-	VolumeMappings            map[string]interface{} `json:"volume_mappings,omitempty"`
+	VolumeMappings            json.RawMessage        `json:"volume_mappings,omitempty"`
 	RunConfig                 DockerRunConfig        `json:"run_config,omitempty"`
 	ImageSrc                  *string                `json:"image_src,omitempty"`
 	Available                 bool                   `json:"available"`
@@ -163,11 +163,11 @@ type DockerRunConfig struct {
 	PidsLimit      int    `json:"pids_limit,omitempty"`      //Tune a container’s pids limit. Set -1 for unlimited.
 
 	// Mounts & Volumes
-	Volumes      map[string]VolumeConfig `json:"volumes,omitempty"`       // A dictionary to configure volumes mounted inside the container.
-	VolumesFrom  []string                `json:"volumes_from,omitempty"`  // List of container names or IDs to get volumes from.
-	VolumeDriver string                  `json:"volume_driver,omitempty"` // The name of a volume driver/plugin.
-	Mounts       []MountConfig           `json:"mounts,omitempty"`        // Specification for mounts to be added to the container. More powerful alternative to volumes. Each item in the list is expected to be a docker.types.Mount object.
-	Tmpfs        map[string]string       `json:"tmpfs,omitempty"`         // Temporary filesystems to mount, as a dictionary mapping a path inside the container to options for that path.
+	Volumes      map[string]VolumeMapping `json:"volumes,omitempty"`       // A dictionary to configure volumes mounted inside the container.
+	VolumesFrom  []string                 `json:"volumes_from,omitempty"`  // List of container names or IDs to get volumes from.
+	VolumeDriver string                   `json:"volume_driver,omitempty"` // The name of a volume driver/plugin.
+	Mounts       []MountConfig            `json:"mounts,omitempty"`        // Specification for mounts to be added to the container. More powerful alternative to volumes. Each item in the list is expected to be a docker.types.Mount object.
+	Tmpfs        map[string]string        `json:"tmpfs,omitempty"`         // Temporary filesystems to mount, as a dictionary mapping a path inside the container to options for that path.
 
 	// Devices & Caps
 	Devices           []string        `json:"devices,omitempty"`             // Expose host devices to the container, as a list of strings in the form <path_on_host>:<path_in_container>:<cgroup_permissions>.	For example, /dev/sda:/dev/xvda:rwm allows the container to have read-write access to the host’s /dev/sda via a node named /dev/xvda inside the container.
@@ -254,7 +254,7 @@ type UlimitConfig struct {
 	Hard int64  `json:"hard,omitempty"` // The hard limit for the ulimit.
 }
 
-type VolumeConfig struct {
+type VolumeMapping struct {
 	Bind string `json:"bind,omitempty"` // The path to mount the volume inside the container
 	Mode string `json:"mode,omitempty"` // Either rw to mount the volume read/write, or ro to mount it read-only.
 	Gid  int    `json:"gid,omitempty"`  // Default GID

@@ -1,10 +1,10 @@
 package Tests
 
-var alternateValues = true
+var alternateValues = false
 
 var baseUrl = "https://192.168.56.103"
-var apiSecret = "rBmnE9mHLmzd"
-var apiKeySecret = "8A1xrZLhm14WFuk9Gf9AerVMljdPzIhk"
+var apiSecret = "FIRsIHNjz6UG"
+var apiKeySecret = "5mPp4pyXrS32OmLQKddPZ3cljvHfga8s"
 var hostIp = "192.168.56.103"
 var user = "thor"
 var password = "stark"

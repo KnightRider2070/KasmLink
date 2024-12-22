@@ -11,17 +11,10 @@ import (
 
 // CreateKasmWorkspace creates a workspace based on user-provided YAML file
 func CreateKasmWorkspace(ctx context.Context, imageDetail webApi.ImageDetail, details userParser.UserDetails, kasmApi *webApi.KasmAPI) error {
-
 	// Parse volume mounts
-	conf, err := parseVolumeMounts(details)
+	volumeMappings, err := parseVolumeMounts(details)
 	if err != nil {
 		return fmt.Errorf("failed to parse volume mounts: %w", err)
-	}
-
-	// Serialize volume configurations to JSON
-	volumeMappingsJSON, err := json.Marshal(conf)
-	if err != nil {
-		return fmt.Errorf("failed to marshal volume mappings: %w", err)
 	}
 
 	// Serialize run configuration to JSON string
@@ -35,14 +28,19 @@ func CreateKasmWorkspace(ctx context.Context, imageDetail webApi.ImageDetail, de
 		return fmt.Errorf("failed to marshal run configuration: %w", err)
 	}
 
-	// Build the target image configuration
+	volumeMappingsJSON, err := json.Marshal(volumeMappings)
+	if err != nil {
+		return fmt.Errorf("failed to marshal volume mappings: %w", err)
+	}
+
 	targetImage := webApi.TargetImage{
 		Name:                  imageDetail.Name,
 		Cores:                 imageDetail.Cores,
-		Memory:                imageDetail.Memory,
+		Memory:                imageDetail.Memory * 1000000,
 		FriendlyName:          imageDetail.FriendlyName,
+		Description:           imageDetail.Description,
 		RestrictNetworkNames:  []string{details.Network},  // Restrict to specified network
-		VolumeMappings:        string(volumeMappingsJSON), // Serialized volume mappings
+		VolumeMappings:        string(volumeMappingsJSON), // Pass as serialized JSON
 		RunConfig:             string(runConfigJSON),      // Serialized run configuration
 		AllowNetworkSelection: false,                      // Allows network selection
 	}

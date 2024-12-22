@@ -11,18 +11,16 @@ import (
 // Note: requires api key with "Images View" permission
 func (api *KasmAPI) ListImages(ctx context.Context) ([]Image, error) {
 	endpoint := "/api/public/get_images"
-	log.Info().
+	log.Debug().
 		Str("method", "POST").
 		Str("endpoint", endpoint).
 		Msg("Initiating request to fetch list of images")
 
-	// Construct request payload
 	requestPayload := GetImagesRequest{
 		APIKey:       api.APIKey,
 		APIKeySecret: api.APIKeySecret,
 	}
 
-	// Make POST request using the enhanced MakePostRequest method
 	responseBytes, err := api.MakePostRequest(ctx, endpoint, requestPayload)
 	if err != nil {
 		log.Error().
@@ -33,7 +31,6 @@ func (api *KasmAPI) ListImages(ctx context.Context) ([]Image, error) {
 		return nil, fmt.Errorf("failed to fetch images: %w", err)
 	}
 
-	// Parse the response into GetImagesResponse struct
 	var imagesResponse GetImagesResponse
 	if err := json.Unmarshal(responseBytes, &imagesResponse); err != nil {
 		log.Error().
@@ -41,7 +38,7 @@ func (api *KasmAPI) ListImages(ctx context.Context) ([]Image, error) {
 			Str("method", "POST").
 			Str("endpoint", endpoint).
 			Msg("Failed to decode images response")
-		return nil, fmt.Errorf("failed to decode images response: %v", err)
+		return nil, fmt.Errorf("failed to decode images response: %w", err)
 	}
 
 	log.Info().
