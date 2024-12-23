@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
-	"kasmlink/pkg/procedures"
-	sshmanager "kasmlink/pkg/sshmanager"
+	"kasmlink/internal"
+	sshmanager "kasmlink/pkg/shadowssh"
 	"kasmlink/pkg/userParser"
 	"kasmlink/pkg/webApi"
 	"os"
@@ -85,7 +85,7 @@ func createTestEnv() *cobra.Command {
 			kApi := webApi.NewKasmAPI("https://192.168.120.5", "C6QmU5ohTUIE", "91MRn9E7FyBSPJ5HtexWrubIG3SYLkB5", true, 50*time.Second)
 
 			ctx, _ := context.WithTimeout(context.Background(), 10000*time.Second)
-			err = procedures.CreateTestEnvironment(ctx, tempFile.Name(), sshConfig, kApi)
+			err = internal.CreateTestEnvironment(ctx, tempFile.Name(), sshConfig, kApi)
 			if err != nil {
 				return
 			}

@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	"kasmlink/pkg/procedures"
+	"kasmlink/internal"
 	"os"
 )
 
@@ -16,7 +16,7 @@ var buildCoreImageCmd = &cobra.Command{
 		imageTag := args[0]
 		baseImage := args[1]
 
-		err := procedures.BuildCoreImageKasm(imageTag, baseImage)
+		err := internal.BuildCoreImageKasm(imageTag, baseImage)
 		if err != nil {
 			fmt.Printf("Error building Docker image: %v\n", err)
 			os.Exit(1)
@@ -43,7 +43,7 @@ var deployImageCmd = &cobra.Command{
 		}
 
 		// Call the deploy function with the optional localTarFilePath
-		err = procedures.DeployKasmDockerImage(imageTag, baseImage, targetNodePath, localTarFilePath)
+		err = internal.DeployKasmDockerImage(imageTag, baseImage, targetNodePath, localTarFilePath)
 		if err != nil {
 			fmt.Printf("Error deploying Docker image: %v\n", err)
 			os.Exit(1)
@@ -66,7 +66,7 @@ var deployComposeCmd = &cobra.Command{
 		composeFilePath := args[0]
 		targetNodePath := args[1]
 
-		err := procedures.DeployComposeFile(composeFilePath, targetNodePath)
+		err := internal.DeployComposeFile(composeFilePath, targetNodePath)
 		if err != nil {
 			fmt.Printf("Error deploying Docker Compose file: %v\n", err)
 			os.Exit(1)

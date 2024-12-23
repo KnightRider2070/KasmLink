@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"kasmlink/pkg/procedures"
+	"kasmlink/internal"
 	"os"
 	"path/filepath"
 )
@@ -39,7 +39,7 @@ func createInitTemplatesFolderCommand() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			folderPath := args[0]
 
-			err := procedures.InitTemplatesFolder(folderPath)
+			err := internal.InitTemplatesFolder(folderPath)
 			if err != nil {
 				HandleError(err)
 				return
@@ -60,7 +60,7 @@ func createInitDockerfilesFolderCommand() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			folderPath := args[0]
 
-			err := procedures.InitDockerfilesFolder(folderPath)
+			err := internal.InitDockerfilesFolder(folderPath)
 			if err != nil {
 				HandleError(err)
 				return
@@ -113,7 +113,7 @@ copying embedded templates for each into the specified folder path.`,
 			folderPath := args[0]
 
 			// Initialize the service templates folder
-			err := procedures.InitTemplatesFolder(filepath.Join(folderPath))
+			err := internal.InitTemplatesFolder(filepath.Join(folderPath))
 			if err != nil {
 				HandleError(fmt.Errorf("failed to initialize service templates: %v", err))
 				return
@@ -121,7 +121,7 @@ copying embedded templates for each into the specified folder path.`,
 			log.Info().Msg("Service templates folder initialized successfully")
 
 			// Initialize the Dockerfiles folder
-			err = procedures.InitDockerfilesFolder(filepath.Join(folderPath))
+			err = internal.InitDockerfilesFolder(filepath.Join(folderPath))
 			if err != nil {
 				HandleError(fmt.Errorf("failed to initialize Dockerfiles: %v", err))
 				return

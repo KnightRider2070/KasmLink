@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"kasmlink/internal"
 	"kasmlink/pkg/dockercompose"
-	"kasmlink/pkg/procedures"
 	"os"
 	"strconv"
 )
@@ -84,7 +84,7 @@ the count of service instances to create, and optional service names for seriali
 			log.Debug().Interface("composeFile", composeFile).Msg("Loaded compose file")
 
 			// Create replicas of service if required inside serviceComposeFile
-			err = procedures.CreateServiceReplicas(&serviceComposeFile, count, serviceNames)
+			err = internal.CreateServiceReplicas(&serviceComposeFile, count, serviceNames)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to create service replicas")
 				os.Exit(1)
@@ -93,13 +93,13 @@ the count of service instances to create, and optional service names for seriali
 			log.Debug().Interface("serviceComposeFile", serviceComposeFile).Msg("Service compose file after creating replicas")
 
 			// Merge serviceComposeFile into composeFile
-			composeFile, err = procedures.MergeComposeFiles(composeFile, serviceComposeFile)
+			composeFile, err = internal.MergeComposeFiles(composeFile, serviceComposeFile)
 
 			log.Debug().Interface("composeFile", composeFile).Msg("Compose file after merging")
 
 			// Write the compose file to the output path
 			log.Info().Msgf("Attempting to write the compose file to %s...", composeFilePath)
-			err = procedures.WriteComposeFile(&composeFile, composeFilePath)
+			err = internal.WriteComposeFile(&composeFile, composeFilePath)
 			if err != nil {
 				fmt.Printf("Error: Failed to write the compose file to %s: %v\n", composeFilePath, err)
 				return

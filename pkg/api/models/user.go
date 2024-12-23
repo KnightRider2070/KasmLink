@@ -1,15 +1,15 @@
 package models
 
 type TargetUser struct {
-	UserID       string `json:"user_id,omitempty"`
-	Username     string `json:"username,omitempty"`
-	FirstName    string `json:"first_name,omitempty"`
-	LastName     string `json:"last_name,omitempty"`
-	Locked       bool   `json:"locked,omitempty"`
-	Disabled     bool   `json:"disabled,omitempty"`
-	Organization string `json:"organization,omitempty"`
-	Phone        string `json:"phone,omitempty"`
-	Password     string `json:"password,omitempty"`
+	UserID       string `json:"user_id,omitempty" yaml:"user_id"`
+	Username     string `json:"username,omitempty" yaml:"username"`
+	FirstName    string `json:"first_name,omitempty" yaml:"first_name"`
+	LastName     string `json:"last_name,omitempty" yaml:"last_name"`
+	Locked       bool   `json:"locked,omitempty" yaml:"locked"`
+	Disabled     bool   `json:"disabled,omitempty" yaml:"disabled"`
+	Organization string `json:"organization,omitempty" yaml:"organization"`
+	Phone        string `json:"phone,omitempty" yaml:"phone"`
+	Password     string `json:"password,omitempty" yaml:"password"`
 }
 
 type UserGroup struct {
