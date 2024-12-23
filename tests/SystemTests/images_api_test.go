@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
-	"kasmlink/Tests"
+	"kasmlink/tests"
 	"kasmlink/pkg/webApi"
 	"testing"
 	"time"

@@ -24,10 +24,10 @@ type BuildImageOptions struct {
 
 // SSHOptions defines the configuration for executing commands over SSH.
 type SSHOptions struct {
-	Host       string
-	Port       int
-	User       string
-	PrivateKey string
+	Host     string
+	Port     int
+	User     string
+	Password string
 }
 
 // BuildImage builds a Docker image either locally or via SSH.

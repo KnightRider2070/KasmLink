@@ -37,6 +37,10 @@ func (c *Client) Client() *ssh.Client {
 	return c.client
 }
 
+func (c *Client) Config() Config {
+	return c.config
+}
+
 // NewConfig initializes and validates an SSH configuration.
 func NewConfig(username, password, host string, port int, knownHostsPath string, timeout time.Duration) (*Config, error) {
 	if username == "" {
