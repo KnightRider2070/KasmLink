@@ -3,12 +3,8 @@ package internal
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/rs/zerolog/log"
 	"kasmlink/pkg/dockercli"
-	"kasmlink/pkg/shadowscp"
 	"kasmlink/pkg/shadowssh"
 	"kasmlink/pkg/userParser"
 )
@@ -66,8 +62,8 @@ func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, docker
 			return fmt.Errorf("workspace configuration not found for workspace ID: %s", user.WorkspaceID)
 		}
 
-		// Step 2.1: Check if the Docker image exists on the remote node
-		if err := ensureDockerImage(ctx, dockerClient, sshClient, workspaceConfig.ImageConfig.Name, dockerfilePath, buildContextDir, sshConfig); err != nil {
+		// Step 2.1: Check if the Docker image exists and deploy if missing
+		if err := ensureDockerImage(ctx, dockerClient, workspaceConfig.ImageConfig.Name, dockerfilePath, buildContextDir, sshConfig); err != nil {
 			return fmt.Errorf("failed to ensure Docker image for user %s: %w", user.TargetUser.Username, err)
 		}
 
@@ -81,8 +77,8 @@ func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, docker
 	return nil
 }
 
-// ensureDockerImage checks if a Docker image exists and deploys it if missing, falling back to local build and transfer.
-func ensureDockerImage(ctx context.Context, dockerClient *dockercli.DockerClient, sshClient *shadowssh.Client, imageTag, dockerfilePath, buildContextDir string, sshConfig *shadowssh.Config) error {
+// ensureDockerImage checks if a Docker image exists and deploys it if missing.
+func ensureDockerImage(ctx context.Context, dockerClient *dockercli.DockerClient, imageTag, dockerfilePath, buildContextDir string, sshConfig *shadowssh.Config) error {
 	log.Info().Str("image_tag", imageTag).Msg("Retrieving Docker images")
 	images, err := dockerClient.ListImages(ctx, dockercli.ListImagesOptions{})
 	if err != nil {
@@ -92,7 +88,7 @@ func ensureDockerImage(ctx context.Context, dockerClient *dockercli.DockerClient
 
 	// Check if the image exists
 	for _, image := range images {
-		if image.Repository == imageTag {
+		if image.Tag == imageTag {
 			log.Info().Str("image_tag", imageTag).Msg("Docker image already exists on remote node. Skipping deployment.")
 			return nil
 		}
@@ -114,33 +110,15 @@ func ensureDockerImage(ctx context.Context, dockerClient *dockercli.DockerClient
 
 	log.Warn().Str("image_tag", imageTag).Msg("Remote build failed. Falling back to local build and transfer.")
 
-	// Build locally and transfer the image
-	tempTarPath := filepath.Join(os.TempDir(), fmt.Sprintf("%s.tar", imageTag))
-	if err := dockerClient.SaveImage(ctx, imageTag, tempTarPath); err != nil {
-		log.Error().Err(err).Msg("Failed to save image locally.")
-		return fmt.Errorf("failed to save image locally: %w", err)
-	}
-	defer os.Remove(tempTarPath)
+	// Use the TransferImage function for local build and transfer
+	dockerclient := dockercli.NewDockerClient(
+		dockercli.NewDefaultCommandExecutor(),
+		dockercli.NewLocalFileSystem(),
+	)
 
-	// Transfer the tarball to the remote node
-	remoteTarPath := fmt.Sprintf("/tmp/%s.tar", imageTag)
-	if err := shadowscp.CopyFileToRemote(ctx, tempTarPath, remoteTarPath, sshConfig); err != nil {
-		log.Error().Err(err).Msg("Failed to transfer tarball to remote node.")
-		return fmt.Errorf("failed to transfer tarball to remote node: %w", err)
-	}
-
-	// Load the image on the remote node
-	loadCommand := fmt.Sprintf("docker load -i %s", remoteTarPath)
-	if _, err := sshClient.ExecuteCommand(ctx, loadCommand); err != nil {
-		log.Error().Err(err).Msg("Failed to load image on remote node.")
-		return fmt.Errorf("failed to load image on remote node: %w", err)
-	}
-	log.Info().Str("image_tag", imageTag).Msg("Image successfully loaded on remote node.")
-
-	// Clean up remote tarball
-	removeCommand := fmt.Sprintf("rm -f %s", remoteTarPath)
-	if _, err := sshClient.ExecuteCommand(ctx, removeCommand); err != nil {
-		log.Warn().Err(err).Str("tar_path", remoteTarPath).Msg("Failed to remove tarball from remote node.")
+	if err := dockerclient.TransferImage(ctx, imageTag, sshConfig); err != nil {
+		log.Error().Err(err).Msg("Failed to transfer Docker image")
+		return fmt.Errorf("failed to transfer Docker image: %w", err)
 	}
 
 	return nil

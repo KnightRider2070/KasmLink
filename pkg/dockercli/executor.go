@@ -18,6 +18,10 @@ type CommandExecutor interface {
 // DefaultCommandExecutor is a default implementation of CommandExecutor.
 type DefaultCommandExecutor struct{}
 
+func NewDefaultCommandExecutor() *DefaultCommandExecutor {
+	return &DefaultCommandExecutor{}
+}
+
 // Execute runs the specified command with arguments.
 func (e *DefaultCommandExecutor) Execute(ctx context.Context, command string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, command, args...)
