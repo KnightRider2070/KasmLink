@@ -14,11 +14,6 @@ import (
 )
 
 // DeployImage deploys a Docker image to the remote node.
-// It ensures the image exists on the remote node by:
-// 1. Checking if it exists remotely.
-// 2. Attempting to pull it remotely.
-// 3. Checking for local availability and exporting it.
-// 4. Searching for a tarball and transferring it if necessary.
 func DeployImage(ctx context.Context, imageName, tarDirectory string, dockerClient *dockercli.DockerClient, sshConfig *shadowssh.Config) error {
 	log.Info().Str("image_name", imageName).Msg("Starting standalone deployment of image.")
 
