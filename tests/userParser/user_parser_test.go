@@ -1,6 +1,7 @@
 package test
 
 import (
+	"encoding/json"
 	"kasmlink/pkg/userParser"
 	"os"
 	"testing"
@@ -27,80 +28,98 @@ func removeTempFile(path string) {
 
 func TestLoadConfig(t *testing.T) {
 	configContent := `
-user_details:
+workspaces:
+  - workspace_id: "workspace1"
+    image_config:
+      name: "image1"
+users:
   - target_user:
       username: "testuser"
       user_id: "12345"
-    role: "admin"
-    assigned_container_tag: "tag1"
-    assigned_container_id: "cont123"
-    kasm_session_of_container: "sess567"
-    network: "default"
-    volume-mounts:
+    workspace_id: "workspace1"
+    environment:
+      key: "value"
+    volume_mounts:
       "/data": "/mnt/data"
-    environment_args:
-      "key": "value"
 `
 	tempFilePath := createTempConfigFile(t, configContent)
 	defer removeTempFile(tempFilePath)
 
 	parser := userParser.NewUserParser()
-	config, err := parser.LoadConfig(tempFilePath)
+	config, err := parser.LoadDeploymentConfig(tempFilePath)
 	require.NoError(t, err)
 
 	t.Logf("Loaded Config: %+v", config)
 
-	assert.Len(t, config.UserDetails, 1)
-	assert.Equal(t, "testuser", config.UserDetails[0].TargetUser.Username)
-	assert.Equal(t, "12345", config.UserDetails[0].TargetUser.UserID)
+	assert.Len(t, config.Users, 1)
+	assert.Equal(t, "testuser", config.Users[0].TargetUser.Username)
+	assert.Equal(t, "12345", config.Users[0].TargetUser.UserID)
 }
 
 func TestSaveConfig(t *testing.T) {
 	tempFilePath := createTempConfigFile(t, "")
 	defer removeTempFile(tempFilePath)
 
-	config := &userParser.UsersConfig{
-		UserDetails: []userParser.UserDetails{
+	config := &userParser.DeploymentConfig{
+		Workspaces: []userParser.WorkspaceConfig{
+			{
+				WorkspaceID: "workspace1",
+				ImageConfig: models.TargetImage{Name: "image1"},
+			},
+		},
+		Users: []userParser.UserDetails{
 			{
 				TargetUser: models.TargetUser{
 					Username: "testuser",
 					UserID:   "12345",
 				},
-				Role:                   "admin",
-				AssignedContainerTag:   "tag1",
-				AssignedContainerId:    "cont123",
-				KasmSessionOfContainer: "sess567",
-				Network:                "default",
-				VolumeMounts:           map[string]string{"/data": "/mnt/data"},
-				EnvironmentArgs:        map[string]string{"key": "value"},
+				WorkspaceID:  "workspace1",
+				Environment:  map[string]string{"key": "value"},
+				VolumeMounts: map[string]string{"/data": "/mnt/data"},
 			},
 		},
 	}
 
 	parser := userParser.NewUserParser()
-	err := parser.SaveConfig(tempFilePath, config)
+	err := parser.SaveDeploymentConfig(tempFilePath, config)
 	require.NoError(t, err)
 
-	loadedConfig, err := parser.LoadConfig(tempFilePath)
+	loadedConfig, err := parser.LoadDeploymentConfig(tempFilePath)
 	require.NoError(t, err)
+
+	// Normalize the loaded configuration for comparison
+	normalizeDeploymentConfig(config)
+	normalizeDeploymentConfig(loadedConfig)
+
 	assert.Equal(t, config, loadedConfig)
+}
+
+func normalizeDeploymentConfig(config *userParser.DeploymentConfig) {
+	for i := range config.Workspaces {
+		if config.Workspaces[i].ImageConfig.LaunchConfig == nil {
+			config.Workspaces[i].ImageConfig.LaunchConfig = json.RawMessage{}
+		}
+		if config.Workspaces[i].ImageConfig.RestrictNetworkNames == nil {
+			config.Workspaces[i].ImageConfig.RestrictNetworkNames = []string{}
+		}
+	}
 }
 
 func TestUpdateUserConfig(t *testing.T) {
 	configContent := `
-user_details:
+workspaces:
+  - workspace_id: "workspace1"
+    image_config:
+      name: "image1"
+users:
   - target_user:
       username: "testuser"
       user_id: "12345"
-    role: "admin"
-    assigned_container_tag: "tag1"
-    assigned_container_id: "cont123"
-    kasm_session_of_container: "sess567"
-    network: "default"
-    volume-mounts:
+    workspace_id: "workspace1"
+    environment:
+      key: "value"
+    volume_mounts:
       "/data": "/mnt/data"
-    environment_args:
-      "key": "value"
 `
 	tempFilePath := createTempConfigFile(t, configContent)
 	defer removeTempFile(tempFilePath)
@@ -108,47 +127,59 @@ user_details:
 	parser := userParser.NewUserParser()
 	newUserID := "67890"
 	newKasmSessionID := "sess789"
-	newContainerID := "cont456"
 
-	err := parser.UpdateUserConfig(tempFilePath, "testuser", newUserID, newKasmSessionID, newContainerID)
+	err := parser.UpdateUserDetails(tempFilePath, "testuser", newUserID, newKasmSessionID)
 	require.NoError(t, err)
 
-	updatedConfig, err := parser.LoadConfig(tempFilePath)
+	updatedConfig, err := parser.LoadDeploymentConfig(tempFilePath)
 	require.NoError(t, err)
 
-	updatedUser := updatedConfig.UserDetails[0]
+	updatedUser := updatedConfig.Users[0]
 	assert.Equal(t, newUserID, updatedUser.TargetUser.UserID)
-	assert.Equal(t, newKasmSessionID, updatedUser.KasmSessionOfContainer)
-	assert.Equal(t, newContainerID, updatedUser.AssignedContainerId)
+	assert.Equal(t, newKasmSessionID, updatedUser.KasmSessionID)
 }
 
 func TestValidateConfig(t *testing.T) {
-	validConfig := &userParser.UsersConfig{
-		UserDetails: []userParser.UserDetails{
+	validConfig := &userParser.DeploymentConfig{
+		Workspaces: []userParser.WorkspaceConfig{
+			{
+				WorkspaceID: "workspace1",
+				ImageConfig: models.TargetImage{Name: "image1"},
+			},
+		},
+		Users: []userParser.UserDetails{
 			{
 				TargetUser: models.TargetUser{
 					Username: "testuser",
 					UserID:   "12345",
 				},
+				WorkspaceID: "workspace1",
 			},
 		},
 	}
-	invalidConfig := &userParser.UsersConfig{
-		UserDetails: []userParser.UserDetails{
+	invalidConfig := &userParser.DeploymentConfig{
+		Workspaces: []userParser.WorkspaceConfig{
+			{
+				WorkspaceID: "workspace1",
+				ImageConfig: models.TargetImage{Name: "image1"},
+			},
+		},
+		Users: []userParser.UserDetails{
 			{
 				TargetUser: models.TargetUser{
 					Username: "",
 					UserID:   "",
 				},
+				WorkspaceID: "",
 			},
 		},
 	}
 
 	parser := userParser.NewUserParser()
 
-	err := parser.ValidateConfig(validConfig)
+	err := parser.ValidateDeploymentConfig(validConfig)
 	require.NoError(t, err)
 
-	err = parser.ValidateConfig(invalidConfig)
+	err = parser.ValidateDeploymentConfig(invalidConfig)
 	require.Error(t, err)
 }

@@ -1,4 +1,4 @@
-package dockercli
+package dockercli_test
 
 import (
 	"context"
@@ -24,8 +24,9 @@ func TestListImages(t *testing.T) {
 	t.Run("Local List Images", func(t *testing.T) {
 		ctx := context.Background()
 		mockExecutor := new(MockExecutor)
+		mockFS := dockercli.NewLocalFileSystem()
 
-		client := dockercli.NewDockerClient(mockExecutor)
+		client := dockercli.NewDockerClient(mockExecutor, mockFS)
 
 		// Simulate output for the `docker images` command
 		mockOutput := `{"repository":"test-repo","tag":"latest","id":"123","size":"10MB"}
@@ -33,12 +34,20 @@ func TestListImages(t *testing.T) {
 `
 		mockExecutor.On("Execute", ctx, "docker", mock.Anything).Return([]byte(mockOutput), nil)
 
-		images, err := client.ListImages(ctx, dockercli.ListImagesOptions{SSH: nil})
+		// Test ListImages with filtering options
+		options := dockercli.ListImagesOptions{
+			Repository: "test-repo",
+		}
 
+		images, err := client.ListImages(ctx, options)
+
+		// Verify results
 		assert.NoError(t, err)
-		assert.Len(t, images, 2)
+		assert.Len(t, images, 1) // Only one image should match the repository filter
 		assert.Equal(t, "test-repo", images[0].Repository)
 		assert.Equal(t, "latest", images[0].Tag)
+
+		// Ensure mock expectations were met
 		mockExecutor.AssertExpectations(t)
 	})
 }

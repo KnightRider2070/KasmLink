@@ -1,11 +1,7 @@
-package dockercli_test
+package dockercli
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"kasmlink/pkg/dockercli"
@@ -40,45 +36,20 @@ func setupTestContextDir(t *testing.T) string {
 	return tempDir
 }
 
-// Helper function to create a valid temporary SSH private key
-func setupTestPrivateKey(t *testing.T) string {
-	// Generate a new RSA private key
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	assert.NoError(t, err)
-
-	// Convert the private key to PEM format
-	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
-	})
-
-	// Create a temporary file to store the key
-	tempFile, err := os.CreateTemp("", "test_private_key")
-	assert.NoError(t, err)
-	defer tempFile.Close()
-
-	// Write the private key to the file
-	_, err = tempFile.Write(privateKeyPEM)
-	assert.NoError(t, err)
-
-	return tempFile.Name()
-}
-
 func TestBuildImage(t *testing.T) {
 	t.Run("Local Build", func(t *testing.T) {
 		ctx := context.Background()
 		mockExecutor := new(MockExecutor)
+		mockFS := dockercli.NewLocalFileSystem()
 
 		// Set up the test context directory
 		testContextDir := setupTestContextDir(t)
 
-		// Simulate local build command execution with JSON-formatted logs.
+		// Simulate local build command execution
 		mockExecutor.On("Execute", ctx, "docker", mock.Anything).
-			Return([]byte(`{"stream":"Step 1/3: FROM alpine:latest\n"}
-{"stream":"Step 2/3: COPY . /app\n"}
-{"stream":"Step 3/3: CMD [\"/bin/sh\"]\n"}`), nil)
+			Return([]byte(`{"stream":"Step 1/3: FROM alpine:latest\n"}`), nil)
 
-		client := dockercli.NewDockerClient(mockExecutor)
+		client := dockercli.NewDockerClient(mockExecutor, mockFS)
 
 		options := dockercli.BuildImageOptions{
 			ContextDir:     testContextDir,
@@ -89,7 +60,7 @@ func TestBuildImage(t *testing.T) {
 		}
 
 		// Ensure the BuildImage method runs without error.
-		err := client.BuildImage(ctx, options)
+		err := dockercli.BuildImage(ctx, client, options)
 		assert.NoError(t, err)
 		mockExecutor.AssertExpectations(t)
 	})
