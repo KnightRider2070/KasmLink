@@ -15,8 +15,17 @@ func CreateTestEnvironment(ctx context.Context, userConfigurationFilePath string
 	// Initialize UserParser
 	userParserInstance := userParser.NewUserParser()
 
+	sshClient, err := shadowssh.NewClient(ctx, sshConfig)
+	if err != nil {
+		log.Error().Err(err).Str("host", sshConfig.Host).Msg("Failed to establish SSH connection")
+		return fmt.Errorf("failed to establish SSH connection: %w", err)
+	}
+	defer sshClient.Close()
+
 	// Initialize Docker Client
-	dockerClient := dockercli.NewDockerClient()
+	executor := dockercli.NewSSHCommandExecutor(sshConfig)
+	fs := dockercli.NewRemoteFileSystem(sshClient)
+	dockerClient := dockercli.NewDockerClient(executor, fs)
 
 	// Step 1: Load user configuration from YAML file
 	log.Info().Str("config_file", userConfigurationFilePath).Msg("Loading user configuration from YAML file")
@@ -32,7 +41,7 @@ func CreateTestEnvironment(ctx context.Context, userConfigurationFilePath string
 	// Step 2: Establish SSH connection with remote node
 	log.Info().Str("host", sshConfig.Host).Str("user", sshConfig.Username).Msg("Establishing SSH connection to remote node")
 
-	sshClient, err := shadowssh.NewClient(ctx, sshConfig)
+	sshClient, err = shadowssh.NewClient(ctx, sshConfig)
 	if err != nil {
 		log.Error().Err(err).Str("host", sshConfig.Host).Msg("Failed to establish SSH connection")
 		return fmt.Errorf("failed to establish SSH connection: %w", err)

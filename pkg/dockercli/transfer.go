@@ -11,7 +11,7 @@ import (
 )
 
 // TransferImage transfers a Docker image to a remote server via SSH.
-func (dc *DockerClient) TransferImage(ctx context.Context, image string, sshOptions *SSHOptions) error {
+func (dc *DockerClient) TransferImage(ctx context.Context, image string, sshOptions *shadowssh.Config) error {
 	log.Info().Str("image", image).Msg("Starting transfer of Docker image")
 
 	// Create tarball of the image.
@@ -24,7 +24,7 @@ func (dc *DockerClient) TransferImage(ctx context.Context, image string, sshOpti
 
 	// Establish SSH connection and transfer tarball.
 	sshClient, err := shadowssh.NewClient(ctx, &shadowssh.Config{
-		Host: sshOptions.Host, Port: sshOptions.Port, Username: sshOptions.User, Password: sshOptions.Password})
+		Host: sshOptions.Host, Port: sshOptions.Port, Username: sshOptions.Username, Password: sshOptions.Password})
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to establish SSH connection")
 		return fmt.Errorf("failed to establish SSH connection: %w", err)
@@ -33,7 +33,7 @@ func (dc *DockerClient) TransferImage(ctx context.Context, image string, sshOpti
 
 	remoteTarPath := fmt.Sprintf("/tmp/%s.tar", filepath.Base(image))
 	if err := shadowscp.CopyFileToRemote(ctx, tarPath, remoteTarPath, &shadowssh.Config{
-		Host: sshOptions.Host, Port: sshOptions.Port, Username: sshOptions.User, Password: sshOptions.Password}); err != nil {
+		Host: sshOptions.Host, Port: sshOptions.Port, Username: sshOptions.Username, Password: sshOptions.Password}); err != nil {
 		log.Error().Err(err).Msg("Failed to transfer image tarball to remote server")
 		return fmt.Errorf("failed to transfer image tarball to remote server: %w", err)
 	}

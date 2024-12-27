@@ -130,7 +130,7 @@ func copyEmbeddedFiles(embeddedFS fs.FS, sourcePath, targetFolder string) error 
 // Returns:
 // - An error if the initialization fails.
 func InitTemplatesFolder(folderPath string) error {
-	return InitFolder(folderPath, "templates", "templates", embedfiles.EmbeddedServicesFS)
+	return InitFolder(folderPath, "templates", "templates", embedfiles.EmbeddedServicesDirectory)
 }
 
 // InitDockerfilesFolder initializes the Dockerfiles folder with embedded Dockerfile templates.
@@ -150,14 +150,14 @@ func InitDockerfilesFolder(folderPath string) error {
 // Returns:
 // - The merged ComposeFile.
 // - An error if merging fails due to incompatibilities.
-func MergeComposeFiles(file1, file2 dockercompose.ComposeFile) (dockercompose.ComposeFile, error) {
+func MergeComposeFiles(file1, file2 dockercompose.DockerCompose) (dockercompose.DockerCompose, error) {
 	// Check if versions are compatible
 	if file1.Version != "" && file2.Version != "" && file1.Version != file2.Version {
 		log.Error().
 			Str("file1_version", file1.Version).
 			Str("file2_version", file2.Version).
 			Msg("Incompatible compose file versions")
-		return dockercompose.ComposeFile{}, fmt.Errorf("incompatible compose file versions: %s and %s", file1.Version, file2.Version)
+		return dockercompose.DockerCompose{}, fmt.Errorf("incompatible compose file versions: %s and %s", file1.Version, file2.Version)
 	}
 
 	// Use file2's version if file1's version is empty
@@ -167,13 +167,13 @@ func MergeComposeFiles(file1, file2 dockercompose.ComposeFile) (dockercompose.Co
 	}
 
 	// Initialize the merged ComposeFile
-	merged := dockercompose.ComposeFile{
+	merged := dockercompose.DockerCompose{
 		Version:  version,
-		Services: make(map[string]dockercompose.Service),
-		Networks: make(map[string]dockercompose.Network),
-		Volumes:  make(map[string]dockercompose.Volume),
-		Configs:  make(map[string]dockercompose.Config),
-		Secrets:  make(map[string]dockercompose.Secret),
+		Services: make(map[string]dockercompose.ServiceDefinition),
+		Networks: make(map[string]dockercompose.NetworkDefinition),
+		Volumes:  make(map[string]dockercompose.VolumeDefinition),
+		Configs:  make(map[string]dockercompose.ConfigDefinition),
+		Secrets:  make(map[string]dockercompose.SecretDefinition),
 	}
 
 	// Merge services
@@ -264,7 +264,7 @@ func MergeComposeFiles(file1, file2 dockercompose.ComposeFile) (dockercompose.Co
 // - service2: The second service to merge.
 // Returns:
 // - The merged service.
-func mergeServices(service1, service2 dockercompose.Service) dockercompose.Service {
+func mergeServices(service1, service2 dockercompose.ServiceDefinition) dockercompose.ServiceDefinition {
 	// Placeholder for merging logic. Currently, service2 overrides service1.
 	// Extend this function to handle specific merging rules as needed.
 	return service2
@@ -277,7 +277,7 @@ func mergeServices(service1, service2 dockercompose.Service) dockercompose.Servi
 // - inputNames: The names to assign to the replicas. If a single name is provided, it appends an index.
 // Returns:
 // - An error if replica creation fails.
-func CreateServiceReplicas(composeFile *dockercompose.ComposeFile, replicas int, inputNames []string) error {
+func CreateServiceReplicas(composeFile *dockercompose.DockerCompose, replicas int, inputNames []string) error {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -288,7 +288,7 @@ func CreateServiceReplicas(composeFile *dockercompose.ComposeFile, replicas int,
 
 	// Retrieve the single service
 	var originalServiceName string
-	var originalService dockercompose.Service
+	var originalService dockercompose.ServiceDefinition
 	for name, service := range composeFile.Services {
 		originalServiceName = name
 		originalService = service
@@ -340,7 +340,7 @@ func CreateServiceReplicas(composeFile *dockercompose.ComposeFile, replicas int,
 // - filePath: The destination file path.
 // Returns:
 // - An error if writing fails.
-func WriteComposeFile(composeFile *dockercompose.ComposeFile, filePath string) error {
+func WriteComposeFile(composeFile *dockercompose.DockerCompose, filePath string) error {
 	// Open the file for writing (create or truncate)
 	file, err := os.Create(filePath)
 	if err != nil {

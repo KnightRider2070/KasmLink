@@ -19,54 +19,36 @@ type DockerImage struct {
 
 // ListImagesOptions defines the options for listing Docker images.
 type ListImagesOptions struct {
-	SSH *SSHOptions // Optional SSH configuration to list images remotely.
+	Repository string   // Filter by repository.
+	Tag        string   // Filter by tag.
+	Additional []string // Additional custom filters or options.
 }
 
-// ListImages lists all Docker images either locally or on a remote server.
+// ListImages lists all Docker images using the configured executor (local or SSH).
 func (dc *DockerClient) ListImages(ctx context.Context, options ListImagesOptions) ([]DockerImage, error) {
-	if options.SSH != nil {
-		return listImagesViaSSH(ctx, options.SSH)
-	}
-	return listImagesLocally(ctx, dc)
-}
+	log.Info().Msg("Starting Docker image listing")
 
-// listImagesLocally lists Docker images present locally.
-func listImagesLocally(ctx context.Context, dc *DockerClient) ([]DockerImage, error) {
-	log.Info().Msg("Listing Docker images locally")
-
+	// Build the command for listing Docker images.
 	cmd := []string{"docker", "images", "--format", "{{json .}}"}
+	if options.Repository != "" {
+		cmd = append(cmd, options.Repository)
+	}
+	if len(options.Additional) > 0 {
+		cmd = append(cmd, options.Additional...)
+	}
 
+	// Execute the command using the configured executor.
 	output, err := dc.executor.Execute(ctx, cmd[0], cmd[1:]...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list Docker images locally: %w", err)
+		return nil, fmt.Errorf("failed to list Docker images: %w", err)
 	}
 
-	return parseDockerImages(output)
-}
-
-// listImagesViaSSH lists Docker images on a remote server via SSH.
-func listImagesViaSSH(ctx context.Context, sshOpts *SSHOptions) ([]DockerImage, error) {
-	if sshOpts.Host == "" || sshOpts.Port == 0 || sshOpts.User == "" || sshOpts.PrivateKey == "" {
-		return nil, fmt.Errorf("SSH options are incomplete")
-	}
-
-	log.Info().Str("host", sshOpts.Host).Msg("Listing Docker images via SSH")
-
-	// Establish SSH connection.
-	sshClient, err := newSSHClient(sshOpts)
+	// Parse and filter results.
+	images, err := parseDockerImages(output)
 	if err != nil {
-		return nil, fmt.Errorf("failed to establish SSH connection: %w", err)
+		return nil, fmt.Errorf("failed to parse Docker images: %w", err)
 	}
-	defer sshClient.Close()
-
-	cmd := "docker images --format '{{json .}}'"
-
-	output, err := executeCommandOverSSH(ctx, sshClient, cmd)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list Docker images via SSH: %w", err)
-	}
-
-	return parseDockerImages([]byte(output))
+	return filterDockerImages(images, options), nil
 }
 
 // parseDockerImages parses the output of the `docker images` command into a slice of DockerImage structs.
@@ -85,6 +67,23 @@ func parseDockerImages(output []byte) ([]DockerImage, error) {
 		images = append(images, image)
 	}
 
-	log.Info().Int("count", len(images)).Msg("Docker images listed successfully")
+	log.Info().Int("count", len(images)).Msg("Docker images parsed successfully")
 	return images, nil
+}
+
+// filterDockerImages applies filters like repository and tag to a list of Docker images.
+func filterDockerImages(images []DockerImage, options ListImagesOptions) []DockerImage {
+	var filtered []DockerImage
+	for _, img := range images {
+		if options.Repository != "" && img.Repository != options.Repository {
+			continue
+		}
+		if options.Tag != "" && img.Tag != options.Tag {
+			continue
+		}
+		filtered = append(filtered, img)
+	}
+
+	log.Info().Int("filtered_count", len(filtered)).Msg("Docker images filtered successfully")
+	return filtered
 }

@@ -2,9 +2,9 @@ package user
 
 import (
 	"fmt"
-	"kasmlink/pkg/api"
 	"kasmlink/pkg/api/base"
 	"kasmlink/pkg/api/http"
+	"kasmlink/pkg/api/models"
 
 	"github.com/rs/zerolog/log"
 )
@@ -36,7 +36,7 @@ func NewUserService(handler http.RequestHandler) *UserService {
 }
 
 // CreateUser sends a request to create a user.
-func (us *UserService) CreateUser(user api.TargetUser) (*api.UserResponse, error) {
+func (us *UserService) CreateUser(user models.TargetUser) (*models.UserResponse, error) {
 	url := fmt.Sprintf("%s%s", us.BaseURL, CreateUserEndpoint)
 	log.Info().Str("url", url).Str("username", user.Username).Msg("Creating new user.")
 
@@ -44,7 +44,7 @@ func (us *UserService) CreateUser(user api.TargetUser) (*api.UserResponse, error
 		"target_user": user,
 	})
 
-	var createdUser api.UserResponse
+	var createdUser models.UserResponse
 	if err := us.ExecuteRequest(url, payload, &createdUser); err != nil {
 		log.Error().Err(err).Msg("Failed to create user.")
 		return nil, err
@@ -55,14 +55,14 @@ func (us *UserService) CreateUser(user api.TargetUser) (*api.UserResponse, error
 }
 
 // GetUsers retrieves a list of all users.
-func (us *UserService) GetUsers() ([]api.UserResponse, error) {
+func (us *UserService) GetUsers() ([]models.UserResponse, error) {
 	url := fmt.Sprintf("%s%s", us.BaseURL, GetUsersEndpoint)
 	log.Info().Str("url", url).Msg("Fetching all users.")
 
 	payload := us.BuildPayload(nil)
 
 	var parsedResponse struct {
-		Users []api.UserResponse `json:"users"`
+		Users []models.UserResponse `json:"users"`
 	}
 	if err := us.ExecuteRequest(url, payload, &parsedResponse); err != nil {
 		log.Error().Err(err).Msg("Failed to fetch users.")
@@ -74,7 +74,7 @@ func (us *UserService) GetUsers() ([]api.UserResponse, error) {
 }
 
 // GetUser retrieves user details by userID or username.
-func (us *UserService) GetUser(userID, username string) (*api.UserResponse, error) {
+func (us *UserService) GetUser(userID, username string) (*models.UserResponse, error) {
 	url := fmt.Sprintf("%s%s", us.BaseURL, GetUserEndpoint)
 	log.Info().
 		Str("url", url).
@@ -89,7 +89,7 @@ func (us *UserService) GetUser(userID, username string) (*api.UserResponse, erro
 		},
 	})
 
-	var user api.UserResponse
+	var user models.UserResponse
 	if err := us.ExecuteRequest(url, payload, &user); err != nil {
 		log.Error().Err(err).Str("user_id", userID).Msg("Failed to fetch user details.")
 		return nil, err
@@ -100,7 +100,7 @@ func (us *UserService) GetUser(userID, username string) (*api.UserResponse, erro
 }
 
 // UpdateUser updates an existing user's details.
-func (us *UserService) UpdateUser(user api.TargetUser) (*api.UserResponse, error) {
+func (us *UserService) UpdateUser(user models.TargetUser) (*models.UserResponse, error) {
 	url := fmt.Sprintf("%s%s", us.BaseURL, UpdateUserEndpoint)
 	log.Info().
 		Str("url", url).
@@ -111,7 +111,7 @@ func (us *UserService) UpdateUser(user api.TargetUser) (*api.UserResponse, error
 		"target_user": user,
 	})
 
-	var updatedUser api.UserResponse
+	var updatedUser models.UserResponse
 	if err := us.ExecuteRequest(url, payload, &updatedUser); err != nil {
 		log.Error().Err(err).Str("user_id", user.UserID).Msg("Failed to update user.")
 		return nil, err

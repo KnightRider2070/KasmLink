@@ -1,11 +1,11 @@
 name: Build/Publish KASM Core Image
 
 on:
-#  push:
-#    branches:
-#      - main
-#    paths:
-#      - "embedded/workspace-core-image/*"
+  #  push:
+  #    branches:
+  #      - main
+  #    paths:
+  #      - "embedded/workspace-core-image/*"
   workflow_dispatch:
 
 env:
