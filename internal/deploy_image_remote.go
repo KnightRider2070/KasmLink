@@ -17,45 +17,40 @@ import (
 func DeployImage(ctx context.Context, imageName, tarDirectory string, dockerClient *dockercli.DockerClient, sshConfig *shadowssh.Config) error {
 	log.Info().Str("image_name", imageName).Msg("Starting standalone deployment of image.")
 
-	// Step 1: Establish SSH connection.
-	sshClient, err := shadowssh.NewClient(ctx, sshConfig)
+	// Step 1: Check if the image exists locally using DockerClient.
+	options := dockercli.ListImagesOptions{Repository: imageName}
+	images, err := dockerClient.ListImages(ctx, options)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to establish SSH connection.")
-		return fmt.Errorf("failed to establish SSH connection: %w", err)
-	}
-	defer sshClient.Close()
-
-	// Step 2: Check if the image exists on the remote node.
-	checkCommand := fmt.Sprintf("docker images -q %s", imageName)
-	output, err := sshClient.ExecuteCommand(ctx, checkCommand)
-	if err == nil && output != "" {
-		log.Info().Str("image_name", imageName).Msg("Image already exists on remote node.")
-		return nil
+		log.Error().Err(err).Msg("Failed to list Docker images locally.")
+		return fmt.Errorf("failed to list Docker images locally: %w", err)
 	}
 
-	// Step 3: Attempt to pull the image on the remote node.
-	pullCommand := fmt.Sprintf("docker pull %s", imageName)
-	if _, err := sshClient.ExecuteCommand(ctx, pullCommand); err == nil {
-		log.Info().Str("image_name", imageName).Msg("Image successfully pulled on remote node.")
-		return nil
-	}
-	log.Warn().Str("image_name", imageName).Msg("Failed to pull image remotely. Checking local availability.")
-
-	// Step 4: Check local availability of the image.
-	imageTarPath := filepath.Join(tarDirectory, fmt.Sprintf("%s.tar", imageName))
-	if _, err := os.Stat(imageTarPath); err == nil {
-		log.Info().Str("tar_path", imageTarPath).Msg("Image tarball found locally.")
+	if len(images) > 0 {
+		log.Info().Str("image_name", imageName).Msg("Image already exists locally.")
 	} else {
-		// Export image locally if tarball does not exist.
-		log.Warn().Str("image_name", imageName).Msg("Image tarball not found. Exporting image locally.")
+		// Step 2: Attempt to pull the image locally.
+		log.Warn().Str("image_name", imageName).Msg("Image not found locally. Attempting to pull.")
+		if err := dockerClient.PullImage(ctx, imageName); err != nil {
+			log.Error().Err(err).Msg("Failed to pull image locally.")
+			return fmt.Errorf("failed to pull image locally: %w", err)
+		}
+		log.Info().Str("image_name", imageName).Msg("Image successfully pulled locally.")
+	}
+
+	// Step 3: Export the image to a tarball if necessary.
+	imageTarPath := filepath.Join(tarDirectory, fmt.Sprintf("%s.tar", imageName))
+	if _, err := os.Stat(imageTarPath); os.IsNotExist(err) {
+		log.Info().Str("image_name", imageName).Msg("Exporting image to tarball.")
 		if err := dockerClient.SaveImage(ctx, imageName, imageTarPath); err != nil {
-			log.Error().Err(err).Msg("Failed to save image locally.")
-			return fmt.Errorf("failed to save image locally: %w", err)
+			log.Error().Err(err).Msg("Failed to save image to tarball.")
+			return fmt.Errorf("failed to save image to tarball: %w", err)
 		}
 		defer os.Remove(imageTarPath)
+	} else {
+		log.Info().Str("tar_path", imageTarPath).Msg("Image tarball already exists.")
 	}
 
-	// Step 5: Transfer the tarball to the remote node.
+	// Step 4: Transfer the tarball to the remote node.
 	log.Info().Str("tar_path", imageTarPath).Msg("Transferring tarball to remote node.")
 	remoteTarPath := fmt.Sprintf("/tmp/%s.tar", imageName)
 	if err := shadowscp.CopyFileToRemote(ctx, imageTarPath, remoteTarPath, sshConfig); err != nil {
@@ -63,15 +58,23 @@ func DeployImage(ctx context.Context, imageName, tarDirectory string, dockerClie
 		return fmt.Errorf("failed to transfer tarball to remote node: %w", err)
 	}
 
-	// Step 6: Load the image on the remote node.
+	// Step 5: Load the image on the remote node.
+	sshClient, err := shadowssh.NewClient(ctx, sshConfig)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to establish SSH connection.")
+		return fmt.Errorf("failed to establish SSH connection: %w", err)
+	}
+	defer sshClient.Close()
+
 	loadCommand := fmt.Sprintf("docker load -i %s", remoteTarPath)
 	if _, err := sshClient.ExecuteCommand(ctx, loadCommand); err != nil {
 		log.Error().Err(err).Msg("Failed to load image on remote node.")
 		return fmt.Errorf("failed to load image on remote node: %w", err)
 	}
+
 	log.Info().Str("image_name", imageName).Msg("Image successfully loaded on remote node.")
 
-	// Step 7: Clean up remote tarball.
+	// Step 6: Clean up remote tarball.
 	removeCommand := fmt.Sprintf("rm -f %s", remoteTarPath)
 	if _, err := sshClient.ExecuteCommand(ctx, removeCommand); err != nil {
 		log.Warn().Err(err).Str("tar_path", remoteTarPath).Msg("Failed to remove tarball from remote node.")

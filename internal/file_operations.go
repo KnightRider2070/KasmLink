@@ -1,4 +1,3 @@
-// procedures/procedures.go
 package internal
 
 import (
