@@ -25,9 +25,23 @@ func (bs *BaseService) BuildPayload(extra map[string]interface{}) map[string]int
 		"api_key":        bs.ApiSecret,
 		"api_key_secret": bs.ApiSecretKey,
 	}
+
+	// Merge maps, preserving nested structures
 	for key, value := range extra {
-		payload[key] = value
+		if nestedMap, ok := value.(map[string]interface{}); ok {
+			if existingMap, exists := payload[key].(map[string]interface{}); exists {
+				for nestedKey, nestedValue := range nestedMap {
+					existingMap[nestedKey] = nestedValue
+				}
+			} else {
+				payload[key] = nestedMap
+			}
+		} else {
+			payload[key] = value
+		}
 	}
+
+	log.Debug().Interface("payload", payload).Msg("Payload being sent.")
 	return payload
 }
 
@@ -38,6 +52,8 @@ func (bs *BaseService) ExecuteRequest(url string, payload map[string]interface{}
 		log.Error().Err(err).Str("url", url).Msg("HTTP request failed.")
 		return err
 	}
+
+	log.Debug().Str("url", url).Str("response", string(response)).Msg("Response received.")
 
 	if result != nil {
 		if err := json.Unmarshal(response, result); err != nil {

@@ -63,7 +63,7 @@ func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, docker
 		}
 
 		// Step 2.1: Check if the Docker image exists and deploy if missing
-		if err := ensureDockerImage(ctx, dockerClient, workspaceConfig.ImageConfig.Name, dockerfilePath, buildContextDir, sshConfig); err != nil {
+		if err := ensureDockerImage(ctx, dockerClient, workspaceConfig.ImageConfig.DockerImageName, dockerfilePath, buildContextDir, sshConfig); err != nil {
 			return fmt.Errorf("failed to ensure Docker image for user %s: %w", user.TargetUser.Username, err)
 		}
 

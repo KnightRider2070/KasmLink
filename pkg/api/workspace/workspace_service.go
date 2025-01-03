@@ -10,11 +10,11 @@ import (
 )
 
 const (
-	CreateWorkspaceEndpoint = "/api/workspace/create"
-	UpdateWorkspaceEndpoint = "/api/workspace/update"
-	DeleteWorkspaceEndpoint = "/api/workspace/delete"
-	GetWorkspaceEndpoint    = "/api/workspace/get"
-	GetWorkspacesEndpoint   = "/api/workspace/list"
+	CreateWorkspaceEndpoint = "/api/public/create_image"
+	UpdateWorkspaceEndpoint = "/api/public/update_image"
+	DeleteWorkspaceEndpoint = "/api/public/delete_image"
+	GetWorkspaceEndpoint    = "/api/public/get_image"
+	GetWorkspacesEndpoint   = "/api/public/get_images"
 )
 
 // WorkspaceService provides methods to manage workspaces.
@@ -35,11 +35,11 @@ func (ws *WorkspaceService) CreateWorkspace(workspace models.TargetImage) (*mode
 	log.Info().Str("url", url).Str("workspace_name", workspace.FriendlyName).Msg("Creating new workspace.")
 
 	payload := ws.BuildPayload(map[string]interface{}{
-		"workspace": workspace,
+		"target_image": workspace,
 	})
 
 	var createdWorkspace models.TargetImage
-	if err := ws.ExecuteRequest(url, payload, &createdWorkspace); err != nil {
+	if err := ws.ExecuteRequest(CreateWorkspaceEndpoint, payload, &createdWorkspace); err != nil {
 		log.Error().Err(err).Msg("Failed to create workspace.")
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (ws *WorkspaceService) UpdateWorkspace(workspace models.TargetImage) (*mode
 	})
 
 	var updatedWorkspace models.TargetImage
-	if err := ws.ExecuteRequest(url, payload, &updatedWorkspace); err != nil {
+	if err := ws.ExecuteRequest(UpdateWorkspaceEndpoint, payload, &updatedWorkspace); err != nil {
 		log.Error().Err(err).Str("workspace_id", workspace.ImageID).Msg("Failed to update workspace.")
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func (ws *WorkspaceService) DeleteWorkspace(workspaceID string) error {
 		},
 	})
 
-	if err := ws.ExecuteRequest(url, payload, nil); err != nil {
+	if err := ws.ExecuteRequest(DeleteWorkspaceEndpoint, payload, nil); err != nil {
 		log.Error().Err(err).Str("workspace_id", workspaceID).Msg("Failed to delete workspace.")
 		return err
 	}
@@ -108,7 +108,7 @@ func (ws *WorkspaceService) GetWorkspace(workspaceID string) (*models.TargetImag
 	})
 
 	var workspace models.TargetImage
-	if err := ws.ExecuteRequest(url, payload, &workspace); err != nil {
+	if err := ws.ExecuteRequest(GetWorkspaceEndpoint, payload, &workspace); err != nil {
 		log.Error().Err(err).Str("workspace_id", workspaceID).Msg("Failed to fetch workspace details.")
 		return nil, err
 	}
@@ -119,19 +119,22 @@ func (ws *WorkspaceService) GetWorkspace(workspaceID string) (*models.TargetImag
 
 // GetWorkspaces retrieves a list of all workspaces.
 func (ws *WorkspaceService) GetWorkspaces() ([]models.TargetImage, error) {
-	url := fmt.Sprintf("%s%s", ws.BaseURL, GetWorkspacesEndpoint)
-	log.Info().Str("url", url).Msg("Fetching all workspaces.")
+	endpoint := GetWorkspacesEndpoint
+	log.Info().
+		Str("endpoint", endpoint).
+		Msg("Fetching list of images.")
 
+	// Build the payload
 	payload := ws.BuildPayload(nil)
 
-	var parsedResponse struct {
-		Workspaces []models.TargetImage `json:"workspaces"`
-	}
-	if err := ws.ExecuteRequest(url, payload, &parsedResponse); err != nil {
-		log.Error().Err(err).Msg("Failed to fetch workspaces.")
+	// Initialize the response object
+	var imagesResponse models.GetWorkspaceResponse
+	if err := ws.ExecuteRequest(endpoint, payload, &imagesResponse); err != nil {
+		log.Error().Err(err).Str("endpoint", endpoint).Msg("Failed to fetch images.")
 		return nil, err
 	}
 
-	log.Info().Int("workspace_count", len(parsedResponse.Workspaces)).Msg("Workspaces retrieved successfully.")
-	return parsedResponse.Workspaces, nil
+	log.Info().Int("image_count", len(imagesResponse.Images)).Str("endpoint", endpoint).Msg("Successfully fetched images.")
+
+	return imagesResponse.Images, nil
 }

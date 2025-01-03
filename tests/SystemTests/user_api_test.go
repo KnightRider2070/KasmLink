@@ -12,7 +12,7 @@ import (
 
 func TestCreateUser(t *testing.T) {
 	// Initialize RequestHandler
-	handler := http.NewRequestHandler(baseUrl, true)
+	handler := http.NewRequestHandler(baseUrl, apiSecret, apiKeySecret, true)
 	kApi := user.NewUserService(*handler)
 
 	// Create context
@@ -45,7 +45,7 @@ func TestCreateUser(t *testing.T) {
 
 func TestGetUser(t *testing.T) {
 	// Initialize RequestHandler
-	handler := http.NewRequestHandler(baseUrl, true)
+	handler := http.NewRequestHandler(baseUrl, apiSecret, apiKeySecret, true)
 	kApi := user.NewUserService(*handler)
 
 	// Create context
@@ -85,7 +85,7 @@ func TestGetUser(t *testing.T) {
 
 func TestUpdateUser(t *testing.T) {
 	// Initialize RequestHandler
-	handler := http.NewRequestHandler(baseUrl, true)
+	handler := http.NewRequestHandler(baseUrl, apiSecret, apiKeySecret, true)
 	kApi := user.NewUserService(*handler)
 
 	// Create context
@@ -131,7 +131,7 @@ func TestUpdateUser(t *testing.T) {
 
 func TestDeleteUser(t *testing.T) {
 	// Initialize RequestHandler
-	handler := http.NewRequestHandler(baseUrl, true)
+	handler := http.NewRequestHandler(baseUrl, apiSecret, apiKeySecret, true)
 	kApi := user.NewUserService(*handler)
 
 	// Create context

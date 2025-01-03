@@ -12,7 +12,7 @@ type TargetImage struct {
 	FriendlyName           string                 `json:"friendly_name"`
 	Hash                   string                 `json:"hash,omitempty"`
 	Memory                 int                    `json:"memory"`
-	Name                   string                 `json:"name"`
+	DockerImageName        string                 `json:"name"`
 	RestrictToNetwork      bool                   `json:"restrict_to_network"`
 	RestrictNetworkNames   []string               `json:"restrict_network_names,omitempty"`
 	RestrictToServer       bool                   `json:"restrict_to_server"`
@@ -30,9 +30,9 @@ type TargetImage struct {
 	OverrideEgressGateways bool                   `json:"override_egress_gateways"`
 	ExecConfig             map[string]interface{} `json:"exec_config,omitempty"`
 	LaunchConfig           map[string]interface{} `json:"launch_config,omitempty"`
-	VolumeMappings         VolumeMapping          `json:"volume_mappings,omitempty"`
-	RunConfig              DockerRunConfig        `json:"run_config,omitempty"`
-	Available              bool                   `json:"available"`
+	VolumeMappings         string                 `json:"volume_mappings,omitempty"`
+	RunConfig              string                 `json:"run_config,omitempty"`
+	Available              bool                   `json:"available,omitempty"`
 
 	// Fields specific to TargetImage
 	FilterPolicyID   string `json:"filter_policy_id,omitempty"`
@@ -188,10 +188,12 @@ type UlimitConfig struct {
 }
 
 type VolumeMapping struct {
-	Bind string `json:"bind,omitempty"` // The path to mount the volume inside the container
-	Mode string `json:"mode,omitempty"` // Either rw to mount the volume read/write, or ro to mount it read-only.
-	Gid  int    `json:"gid,omitempty"`  // Default GID
-	Uid  int    `json:"uid,omitempty"`  // Default UID
+	Bind      string `json:"bind"` // The path to mount the volume inside the container
+	Mode      string `json:"mode"` // Either rw to mount the volume read/write, or ro to mount it read-only.
+	Gid       int    `json:"gid"`  // Default GID
+	Uid       int    `json:"uid"`  // Default UID
+	Required  bool   `json:"required,omitempty"`
+	SkipCheck bool   `json:"skip_check,omitempty"`
 }
 
 // DeleteImageRequest represents the payload required to delete an image.
@@ -202,4 +204,8 @@ type DeleteImageRequest struct {
 	TargetImage  struct {
 		ImageID string `json:"image_id"`
 	} `json:"target_image"`
+}
+
+type GetWorkspaceResponse struct {
+	Images []TargetImage `json:"images"`
 }

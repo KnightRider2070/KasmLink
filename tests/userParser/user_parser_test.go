@@ -64,8 +64,8 @@ func TestSaveConfig(t *testing.T) {
 			{
 				WorkspaceID: "workspace1",
 				ImageConfig: models.TargetImage{
-					FriendlyName: "image1",
-					Name:         "image1",
+					FriendlyName:    "image1",
+					DockerImageName: "image1",
 					// Ensure other fields match the actual default state.
 					RestrictNetworkNames: []string{}, // Use empty slice instead of nil.
 					Categories:           []string{},
@@ -137,7 +137,7 @@ func TestValidateConfig(t *testing.T) {
 		Workspaces: []userParser.WorkspaceConfig{
 			{
 				WorkspaceID: "workspace1",
-				ImageConfig: models.TargetImage{Name: "image1"},
+				ImageConfig: models.TargetImage{DockerImageName: "image1"},
 			},
 		},
 		Users: []userParser.UserDetails{
@@ -154,7 +154,7 @@ func TestValidateConfig(t *testing.T) {
 		Workspaces: []userParser.WorkspaceConfig{
 			{
 				WorkspaceID: "workspace1",
-				ImageConfig: models.TargetImage{Name: "image1"},
+				ImageConfig: models.TargetImage{DockerImageName: "image1"},
 			},
 		},
 		Users: []userParser.UserDetails{

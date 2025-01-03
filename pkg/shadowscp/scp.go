@@ -88,7 +88,7 @@ func executeFileTransfer(ctx context.Context, localFilePath, remoteDir string, s
 	log.Debug().Msg("SFTP client created successfully")
 
 	// Construct remote file path
-	remoteFilePath := filepath.Join(remoteDir, filepath.Base(localFilePath))
+	remoteFilePath := fmt.Sprintf("%s/%s", remoteDir, filepath.Base(localFilePath))
 
 	// Open local file
 	log.Debug().Str("file", localFilePath).Msg("Opening local file")

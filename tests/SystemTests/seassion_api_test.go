@@ -12,7 +12,7 @@ import (
 
 func TestRequestKasm(t *testing.T) {
 	// Initialize RequestHandler
-	handler := http.NewRequestHandler(baseUrl, true)
+	handler := http.NewRequestHandler(baseUrl, apiSecret, apiKeySecret, true)
 	kApi := sessions.NewSessionService(*handler)
 
 	// Create context
@@ -41,7 +41,7 @@ func TestRequestKasm(t *testing.T) {
 
 func TestGetKasmStatus(t *testing.T) {
 	// Initialize RequestHandler
-	handler := http.NewRequestHandler(baseUrl, true)
+	handler := http.NewRequestHandler(baseUrl, apiSecret, apiKeySecret, true)
 	kApi := sessions.NewSessionService(*handler)
 
 	// Create context
@@ -80,7 +80,7 @@ func TestGetKasmStatus(t *testing.T) {
 
 func TestDestroyKasmSession(t *testing.T) {
 	// Initialize RequestHandler
-	handler := http.NewRequestHandler(baseUrl, true)
+	handler := http.NewRequestHandler(baseUrl, apiSecret, apiKeySecret, true)
 	kApi := sessions.NewSessionService(*handler)
 
 	// Create context
