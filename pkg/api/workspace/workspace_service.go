@@ -30,7 +30,7 @@ func NewWorkspaceService(handler http.RequestHandler) *WorkspaceService {
 }
 
 // CreateWorkspace sends a request to create a workspace.
-func (ws *WorkspaceService) CreateWorkspace(workspace models.TargetImage) (*models.ImageDetail, error) {
+func (ws *WorkspaceService) CreateWorkspace(workspace models.TargetImage) (*models.TargetImage, error) {
 	url := fmt.Sprintf("%s%s", ws.BaseURL, CreateWorkspaceEndpoint)
 	log.Info().Str("url", url).Str("workspace_name", workspace.FriendlyName).Msg("Creating new workspace.")
 
@@ -38,7 +38,7 @@ func (ws *WorkspaceService) CreateWorkspace(workspace models.TargetImage) (*mode
 		"workspace": workspace,
 	})
 
-	var createdWorkspace models.ImageDetail
+	var createdWorkspace models.TargetImage
 	if err := ws.ExecuteRequest(url, payload, &createdWorkspace); err != nil {
 		log.Error().Err(err).Msg("Failed to create workspace.")
 		return nil, err
@@ -49,7 +49,7 @@ func (ws *WorkspaceService) CreateWorkspace(workspace models.TargetImage) (*mode
 }
 
 // UpdateWorkspace updates an existing workspace's details.
-func (ws *WorkspaceService) UpdateWorkspace(workspace models.TargetImage) (*models.ImageDetail, error) {
+func (ws *WorkspaceService) UpdateWorkspace(workspace models.TargetImage) (*models.TargetImage, error) {
 	url := fmt.Sprintf("%s%s", ws.BaseURL, UpdateWorkspaceEndpoint)
 	log.Info().
 		Str("url", url).
@@ -60,7 +60,7 @@ func (ws *WorkspaceService) UpdateWorkspace(workspace models.TargetImage) (*mode
 		"workspace": workspace,
 	})
 
-	var updatedWorkspace models.ImageDetail
+	var updatedWorkspace models.TargetImage
 	if err := ws.ExecuteRequest(url, payload, &updatedWorkspace); err != nil {
 		log.Error().Err(err).Str("workspace_id", workspace.ImageID).Msg("Failed to update workspace.")
 		return nil, err
@@ -94,7 +94,7 @@ func (ws *WorkspaceService) DeleteWorkspace(workspaceID string) error {
 }
 
 // GetWorkspace retrieves workspace details by workspace ID.
-func (ws *WorkspaceService) GetWorkspace(workspaceID string) (*models.ImageDetail, error) {
+func (ws *WorkspaceService) GetWorkspace(workspaceID string) (*models.TargetImage, error) {
 	url := fmt.Sprintf("%s%s", ws.BaseURL, GetWorkspaceEndpoint)
 	log.Info().
 		Str("url", url).
@@ -107,7 +107,7 @@ func (ws *WorkspaceService) GetWorkspace(workspaceID string) (*models.ImageDetai
 		},
 	})
 
-	var workspace models.ImageDetail
+	var workspace models.TargetImage
 	if err := ws.ExecuteRequest(url, payload, &workspace); err != nil {
 		log.Error().Err(err).Str("workspace_id", workspaceID).Msg("Failed to fetch workspace details.")
 		return nil, err
@@ -118,14 +118,14 @@ func (ws *WorkspaceService) GetWorkspace(workspaceID string) (*models.ImageDetai
 }
 
 // GetWorkspaces retrieves a list of all workspaces.
-func (ws *WorkspaceService) GetWorkspaces() ([]models.ImageDetail, error) {
+func (ws *WorkspaceService) GetWorkspaces() ([]models.TargetImage, error) {
 	url := fmt.Sprintf("%s%s", ws.BaseURL, GetWorkspacesEndpoint)
 	log.Info().Str("url", url).Msg("Fetching all workspaces.")
 
 	payload := ws.BuildPayload(nil)
 
 	var parsedResponse struct {
-		Workspaces []models.ImageDetail `json:"workspaces"`
+		Workspaces []models.TargetImage `json:"workspaces"`
 	}
 	if err := ws.ExecuteRequest(url, payload, &parsedResponse); err != nil {
 		log.Error().Err(err).Msg("Failed to fetch workspaces.")

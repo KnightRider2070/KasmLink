@@ -20,7 +20,7 @@ func TestDockerRegistrySetup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10000*time.Second)
 	defer cancel()
 
-	sshConfig, err := sshmanager.NewConfig(user, password, hostIp, 22, knwHosts, 10*time.Second)
+	sshConfig, err := sshmanager.NewConfig(username, password, hostIp, 22, knwHosts, 10*time.Second)
 	assert.NoError(t, err)
 
 	// Run SetupRegistry

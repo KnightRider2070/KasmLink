@@ -1,114 +1,58 @@
 package models
 
-import "encoding/json"
-
 type TargetImage struct {
-	AllowNetworkSelection  bool            `json:"allow_network_selection,omitempty"`
-	Categories             string          `json:"categories,omitempty"`
-	Cores                  float64         `json:"cores"`
-	CPUAllocationMethod    string          `json:"cpu_allocation_method"`
-	Description            string          `json:"description"`
-	DockerRegistry         string          `json:"docker_registry,omitempty"`
-	DockerToken            string          `json:"docker_token,omitempty"`
-	DockerUser             string          `json:"docker_user,omitempty"`
-	Enabled                bool            `json:"enabled"`
-	ExecConfig             string          `json:"exec_config,omitempty"`
-	FilterPolicyID         *string         `json:"filter_policy_id,omitempty"`
-	FriendlyName           string          `json:"friendly_name"`
-	GPUCount               float64         `json:"gpu_count"`
-	Hash                   string          `json:"hash,omitempty"`
-	Hidden                 bool            `json:"hidden,omitempty"`
-	ImageID                string          `json:"image_id,omitempty"`
-	ImageSrc               *string         `json:"image_src,omitempty"`
-	ImageType              string          `json:"image_type"`
-	IsRemoteApp            bool            `json:"is_remote_app,omitempty"`
-	LaunchConfig           json.RawMessage `json:"launch_config,omitempty"`
-	LinkURL                *string         `json:"link_url,omitempty"`
-	Memory                 int             `json:"memory"`
-	Name                   string          `json:"name"`
-	Notes                  string          `json:"notes,omitempty"`
-	OverrideEgressGateways bool            `json:"override_egress_gateways,omitempty"`
-	PersistentProfilePath  *string         `json:"persistent_profile_path,omitempty"`
-	RDPClientType          *string         `json:"rdp_client_type,omitempty"`
-	RemoteAppArgs          *string         `json:"remote_app_args,omitempty"`
-	RemoteAppName          *string         `json:"remote_app_name,omitempty"`
-	RemoteAppProgram       *string         `json:"remote_app_program,omitempty"`
-	RequireGPU             bool            `json:"require_gpu,omitempty"`
-	RestrictNetworkNames   []string        `json:"restrict_network_names,omitempty"`
-	RestrictToNetwork      bool            `json:"restrict_to_network,omitempty"`
-	RestrictToServer       bool            `json:"restrict_to_server,omitempty"`
-	RestrictToZone         bool            `json:"restrict_to_zone,omitempty"`
-	RunConfig              string          `json:"run_config,omitempty"`
-	ServerID               string          `json:"server_id,omitempty"`
-	ServerPoolID           *string         `json:"server_pool_id,omitempty"`
-	SessionTimeLimit       string          `json:"session_time_limit,omitempty"`
-	UncompressedSizeMB     int             `json:"uncompressed_size_mb,omitempty"`
-	VolumeMappings         string          `json:"volume_mappings,omitempty"`
-	ZoneID                 string          `json:"zone_id,omitempty"`
-}
+	// Shared fields between TargetImage and ImageDetail
+	ImageID                string                 `json:"image_id,omitempty"`
+	Cores                  float64                `json:"cores"`
+	Description            string                 `json:"description"`
+	DockerRegistry         string                 `json:"docker_registry,omitempty"`
+	DockerToken            string                 `json:"docker_token,omitempty"`
+	DockerUser             string                 `json:"docker_user,omitempty"`
+	Enabled                bool                   `json:"enabled"`
+	FriendlyName           string                 `json:"friendly_name"`
+	Hash                   string                 `json:"hash,omitempty"`
+	Memory                 int                    `json:"memory"`
+	Name                   string                 `json:"name"`
+	RestrictToNetwork      bool                   `json:"restrict_to_network"`
+	RestrictNetworkNames   []string               `json:"restrict_network_names,omitempty"`
+	RestrictToServer       bool                   `json:"restrict_to_server"`
+	ServerID               string                 `json:"server_id,omitempty"`
+	PersistentProfilePath  string                 `json:"persistent_profile_path,omitempty"`
+	Categories             []string               `json:"categories,omitempty"`
+	AllowNetworkSelection  bool                   `json:"allow_network_selection"`
+	RequireGPU             bool                   `json:"require_gpu"`
+	GPUCount               float64                `json:"gpu_count"`
+	Hidden                 bool                   `json:"hidden"`
+	Notes                  string                 `json:"notes,omitempty"`
+	ImageType              string                 `json:"image_type"`
+	CPUAllocationMethod    string                 `json:"cpu_allocation_method"`
+	UncompressedSizeMB     int                    `json:"uncompressed_size_mb,omitempty"`
+	OverrideEgressGateways bool                   `json:"override_egress_gateways"`
+	ExecConfig             map[string]interface{} `json:"exec_config,omitempty"`
+	LaunchConfig           map[string]interface{} `json:"launch_config,omitempty"`
+	VolumeMappings         VolumeMapping          `json:"volume_mappings,omitempty"`
+	RunConfig              DockerRunConfig        `json:"run_config,omitempty"`
+	Available              bool                   `json:"available"`
 
-// CreateImageRequest represents the request structure for creating/updating an image.
-// Now includes APIKey and APIKeySecret.
-type CreateImageRequest struct {
-	APIKey       string      `json:"api_key"`
-	APIKeySecret string      `json:"api_key_secret"`
-	TargetImage  TargetImage `json:"target_image"`
-}
+	// Fields specific to TargetImage
+	FilterPolicyID   string `json:"filter_policy_id,omitempty"`
+	ImageTagSrc      string `json:"image_src,omitempty"`
+	SessionTimeLimit string `json:"session_time_limit,omitempty"`
+	ServerPoolID     string `json:"server_pool_id,omitempty"`
+	RemoteAppArgs    string `json:"remote_app_args,omitempty"`
+	RemoteAppName    string `json:"remote_app_name,omitempty"`
+	RemoteAppProgram string `json:"remote_app_program,omitempty"`
+	RemoteAppIcon    string `json:"remote_app_icon,omitempty"`
 
-// ImageDetail represents the structure of the "image" object in the response.
-type ImageDetail struct {
-	ImageID                   string                 `json:"image_id"`
-	Cores                     float64                `json:"cores"`
-	Description               string                 `json:"description"`
-	DockerRegistry            *string                `json:"docker_registry,omitempty"`
-	DockerToken               *string                `json:"docker_token,omitempty"`
-	DockerUser                *string                `json:"docker_user,omitempty"`
-	Enabled                   bool                   `json:"enabled"`
-	FriendlyName              string                 `json:"friendly_name"`
-	Hash                      *string                `json:"hash,omitempty"`
-	Memory                    int                    `json:"memory"`
-	Name                      string                 `json:"name"`
-	XRes                      int                    `json:"x_res"`
-	YRes                      int                    `json:"y_res"`
+	// Fields specific to ImageDetail
+	XRes                      int                    `json:"x_res,omitempty"`
+	YRes                      int                    `json:"y_res,omitempty"`
 	ImageAttributes           []string               `json:"imageAttributes,omitempty"`
-	RestrictToNetwork         bool                   `json:"restrict_to_network"`
-	RestrictNetworkNames      []string               `json:"restrict_network_names,omitempty"`
-	RestrictToServer          bool                   `json:"restrict_to_server"`
-	ServerID                  *string                `json:"server_id,omitempty"`
 	PersistentProfileConfig   map[string]interface{} `json:"persistent_profile_config,omitempty"`
-	VolumeMappings            json.RawMessage        `json:"volume_mappings,omitempty"`
-	RunConfig                 DockerRunConfig        `json:"run_config,omitempty"`
-	ImageSrc                  *string                `json:"image_src,omitempty"`
-	Available                 bool                   `json:"available"`
-	ExecConfig                map[string]interface{} `json:"exec_config,omitempty"`
-	RestrictToZone            bool                   `json:"restrict_to_zone"`
-	ZoneID                    *string                `json:"zone_id,omitempty"`
-	ZoneName                  *string                `json:"zone_name,omitempty"`
-	PersistentProfilePath     *string                `json:"persistent_profile_path,omitempty"`
-	FilterPolicyID            *string                `json:"filter_policy_id,omitempty"`
-	FilterPolicyName          *string                `json:"filter_policy_name,omitempty"`
+	ZoneID                    string                 `json:"zone_id,omitempty"`
+	ZoneName                  string                 `json:"zone_name,omitempty"`
+	FilterPolicyName          string                 `json:"filter_policy_name,omitempty"`
 	FilterPolicyForceDisabled bool                   `json:"filter_policy_force_disabled"`
-	SessionTimeLimit          *string                `json:"session_time_limit,omitempty"`
-	Categories                []string               `json:"categories,omitempty"`
-	DefaultCategory           string                 `json:"default_category,omitempty"`
-	AllowNetworkSelection     bool                   `json:"allow_network_selection"`
-	RequireGPU                bool                   `json:"require_gpu"`
-	GPUCount                  float64                `json:"gpu_count"`
-	Hidden                    bool                   `json:"hidden"`
-	Notes                     *string                `json:"notes,omitempty"`
-	ImageType                 string                 `json:"image_type"`
-	ServerPoolID              *string                `json:"server_pool_id,omitempty"`
-	LinkURL                   *string                `json:"link_url,omitempty"`
-	CPUAllocationMethod       string                 `json:"cpu_allocation_method"`
-	UncompressedSizeMB        int                    `json:"uncompressed_size_mb,omitempty"`
-	LaunchConfig              map[string]interface{} `json:"launch_config,omitempty"`
-	RDPClientType             *string                `json:"rdp_client_type,omitempty"`
-	OverrideEgressGateways    bool                   `json:"override_egress_gateways"`
-	RemoteAppName             *string                `json:"remote_app_name,omitempty"`
-	RemoteAppArgs             *string                `json:"remote_app_args,omitempty"`
-	RemoteAppIcon             *string                `json:"remote_app_icon,omitempty"`
-	RemoteAppProgram          *string                `json:"remote_app_program,omitempty"`
-	IsRemoteApp               bool                   `json:"is_remote_app"`
 }
 
 // DockerRunConfig represents the Docker Run Config Override structure
@@ -196,7 +140,7 @@ type DockerRunConfig struct {
 	Stream          bool                   `json:"stream,omitempty"`            // If true and detach is false, return a log generator instead of a string. Ignored if detach is true. Default: False.
 	PublishAllPorts bool                   `json:"publish_all_ports,omitempty"` // Publish all ports to the host.
 	Ports           map[string]interface{} `json:"ports,omitempty"`             // Ports to bind inside the container.	The keys of the dictionary are the ports to bind inside the container, either as an integer or a string in the form port/protocol, where the protocol is either tcp, udp, or sctp.
-	RestartPolicy   *RestartPolicy         `json:"restart_policy,omitempty"`    // Restart the container when it exits.
+	RestartPolicy   RestartPolicy          `json:"restart_policy,omitempty"`    // Restart the container when it exits.
 	Runtime         string                 `json:"runtime,omitempty"`           // Runtime to use with this container.
 	StorageOpt      map[string]string      `json:"storage_opt,omitempty"`       // Storage driver options per container as a key-value mapping.
 	Ulimits         []UlimitConfig         `json:"ulimits,omitempty"`           // Ulimits to set inside the container, as a list of docker.types.Ulimit instances.
@@ -248,11 +192,6 @@ type VolumeMapping struct {
 	Mode string `json:"mode,omitempty"` // Either rw to mount the volume read/write, or ro to mount it read-only.
 	Gid  int    `json:"gid,omitempty"`  // Default GID
 	Uid  int    `json:"uid,omitempty"`  // Default UID
-}
-
-// Response represents the full response structure containing the image details.
-type Response struct {
-	Image ImageDetail `json:"image"`
 }
 
 // DeleteImageRequest represents the payload required to delete an image.

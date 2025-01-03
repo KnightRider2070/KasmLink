@@ -6,7 +6,7 @@ var baseUrl = "https://192.168.56.103"
 var apiSecret = "FIRsIHNjz6UG"
 var apiKeySecret = "5mPp4pyXrS32OmLQKddPZ3cljvHfga8s"
 var hostIp = "192.168.56.103"
-var user = "thor"
+var username = "thor"
 var password = "stark"
 var knwHosts = "C:\\Users\\cjhue\\.ssh\\known_hosts"
 
@@ -25,14 +25,14 @@ func init() {
 		apiSecret = altApiSecret
 		apiKeySecret = altApiKeySecret
 		hostIp = altHostIp
-		user = altUser
+		username = altUser
 		password = altPassword
 		knwHosts = altKnwHosts
 	}
 }
 
 //Create ssh config
-//sshConfig, _ := shadowssh.NewSSHConfig(user, password, hostIp, 22, knwHosts, 10*time.Second)
+//sshConfig, _ := shadowssh.NewSSHConfig(username, password, hostIp, 22, knwHosts, 10*time.Second)
 
 //Create KASM API
 //kApi := webApi.NewKasmAPI(baseUrl, apiSecret, apiKeySecret, true, 50*time.Second)

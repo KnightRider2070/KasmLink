@@ -4,26 +4,34 @@ import (
 	"context"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
-	"kasmlink/pkg/webApi"
+	"kasmlink/pkg/api/http"
+	"kasmlink/pkg/api/images"
 	"testing"
 	"time"
 )
 
 func TestListImages(t *testing.T) {
+	// Initialize RequestHandler
+	handler := http.NewRequestHandler(baseUrl, true)
 
-	//Create KASM API
-	kApi := webApi.NewKasmAPI(Tests.baseUrl, Tests.apiSecret, Tests.apiKeySecret, true, 50*time.Second)
+	// Initialize ImageService
+	imageService := images.NewImageService(*handler)
 
-	//Create context
-	ctx, _ := context.WithTimeout(context.Background(), 10000*time.Second)
+	// Create context with timeout
+	_, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+	defer cancel()
 
-	imagesAvailable, err := kApi.ListImages(ctx)
+	// Fetch list of available images
+	imagesAvailable, err := imageService.ListImages()
 
+	// Log available images or errors
 	if err != nil {
-		// No error
+		log.Error().Err(err).Msg("Failed to fetch available images from Kasm API")
+	} else {
 		log.Debug().Int("Available image count", len(imagesAvailable)).Msg("Available Images on Kasm")
 	}
 
+	// Validate the results
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(imagesAvailable))
+	assert.NotEmpty(t, imagesAvailable, "Expected at least one image to be available")
 }

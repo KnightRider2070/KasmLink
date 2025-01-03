@@ -4,20 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
-	"kasmlink/pkg/webApi"
+	"kasmlink/pkg/api/http"
+	"kasmlink/pkg/api/images"
+	"kasmlink/pkg/api/models"
 	"testing"
 	"time"
 )
 
 func TestCreateImage(t *testing.T) {
-	kApi := webApi.NewKasmAPI(baseUrl, apiSecret, apiKeySecret, true, 100*time.Second)
+	// Initialize RequestHandler
+	handler := http.NewRequestHandler(baseUrl, true)
+	kApi := images.NewImageService(handler)
 
 	// Create context
-	ctx, cancel := context.WithTimeout(context.Background(), 10000*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
 	// Prepare the RunConfig struct
-	runConfig := webApi.DockerRunConfig{
+	runConfig := images.DockerRunConfig{
 		Environment: map[string]string{
 			"LC_ALL": "fr_FR.UTF-8",
 			"TZ":     "Europe/Paris",
@@ -33,12 +37,13 @@ func TestCreateImage(t *testing.T) {
 
 	// Convert RunConfig to JSON string
 	runConfigBytes, err := json.Marshal(runConfig)
+	assert.NoError(t, err)
 
-	// Prepare the request to create a new image, including API credentials
-	createReq := webApi.CreateImageRequest{
-		APIKey:       kApi.APIKey,
-		APIKeySecret: kApi.APIKeySecret,
-		TargetImage: webApi.TargetImage{
+	// Prepare the request to create a new image
+	createReq := images.CreateImageRequest{
+		APIKey:       "your-api-key",
+		APIKeySecret: "your-api-secret",
+		TargetImage: images.TargetImage{
 			Cores:               2,
 			CPUAllocationMethod: "Inherit",
 			Description:         "Test image creation",
@@ -48,7 +53,7 @@ func TestCreateImage(t *testing.T) {
 			ImageType:           "Container",
 			Memory:              2786000000,
 			Name:                "kasmweb/chrome",
-			RunConfig:           string(runConfigBytes), // Pass as JSON string
+			RunConfig:           string(runConfigBytes),
 		},
 	}
 
@@ -61,14 +66,16 @@ func TestCreateImage(t *testing.T) {
 }
 
 func TestUpdateImage(t *testing.T) {
-	kApi := webApi.NewKasmAPI(baseUrl, apiSecret, apiKeySecret, true, 100*time.Second)
+	// Initialize RequestHandler
+	handler := http.NewRequestHandler(baseUrl, true)
+	kApi := images.NewImageService(handler)
 
 	// Create context
-	ctx, cancel := context.WithTimeout(context.Background(), 10000*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
 	// Prepare the RunConfig struct
-	runConfig := webApi.DockerRunConfig{
+	runConfig := images.DockerRunConfig{
 		Environment: map[string]string{
 			"LC_ALL": "fr_FR.UTF-8",
 			"TZ":     "Europe/Paris",
@@ -84,11 +91,13 @@ func TestUpdateImage(t *testing.T) {
 
 	// Convert RunConfig to JSON string
 	runConfigBytes, err := json.Marshal(runConfig)
+	assert.NoError(t, err)
 
-	createReq := webApi.CreateImageRequest{
-		APIKey:       kApi.APIKey,
-		APIKeySecret: kApi.APIKeySecret,
-		TargetImage: webApi.TargetImage{
+	// Prepare the request to create a new image
+	createReq := images.CreateImageRequest{
+		APIKey:       "your-api-key",
+		APIKeySecret: "your-api-secret",
+		TargetImage: images.TargetImage{
 			Cores:               2,
 			CPUAllocationMethod: "Inherit",
 			Description:         "Test image for update",
@@ -118,14 +127,16 @@ func TestUpdateImage(t *testing.T) {
 }
 
 func TestDeleteImage(t *testing.T) {
-	kApi := webApi.NewKasmAPI(baseUrl, apiSecret, apiKeySecret, true, 100*time.Second)
+	// Initialize RequestHandler
+	handler := http.NewRequestHandler(baseUrl, true)
+	kApi := images.NewImageService(handler)
 
 	// Create context
-	ctx, cancel := context.WithTimeout(context.Background(), 10000*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
 	// Prepare the RunConfig struct
-	runConfig := webApi.DockerRunConfig{
+	runConfig := images.DockerRunConfig{
 		Environment: map[string]string{
 			"LC_ALL": "fr_FR.UTF-8",
 			"TZ":     "Europe/Paris",
@@ -141,11 +152,12 @@ func TestDeleteImage(t *testing.T) {
 
 	// Convert RunConfig to JSON string
 	runConfigBytes, err := json.Marshal(runConfig)
+	assert.NoError(t, err)
 
-	createReq := webApi.CreateImageRequest{
-		APIKey:       kApi.APIKey,
-		APIKeySecret: kApi.APIKeySecret,
-		TargetImage: webApi.TargetImage{
+	// Prepare the request to create a new image
+	createReq := models.TargetImage{
+s
+		TargetImage: models.TargetImage{
 			Cores:               2,
 			CPUAllocationMethod: "Inherit",
 			Description:         "Test image for deletion",

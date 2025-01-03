@@ -4,43 +4,52 @@ import (
 	"context"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
-	"kasmlink/internal"
-	"kasmlink/pkg/userParser"
-	"kasmlink/pkg/webApi"
+	"kasmlink/pkg/api/http"
+	"kasmlink/pkg/api/images"
+	"kasmlink/pkg/api/models"
+	"kasmlink/pkg/api/workspace"
 	"testing"
 	"time"
 )
 
 func TestCreateKasmWorkspace(t *testing.T) {
-	// Create a Kasm API client
-	kApi := webApi.NewKasmAPI(baseUrl, apiSecret, apiKeySecret, true, 50*time.Second)
+	// Initialize RequestHandler
+	handler := http.NewRequestHandler(baseUrl, true)
 
-	// Create a context for the request
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+	// Initialize ImageService and WorkspaceService
+	imageService := images.NewImageService(*handler)
+	workspaceService := workspace.NewWorkspaceService(*handler)
+
+	// Create context with timeout
+	_, cancel := context.WithTimeout(context.Background(), 50*time.Second)
 	defer cancel()
 
-	// Define the image and user details for the workspace to create
-	imageDetail := webApi.ImageDetail{
-		Name:         "kasmweb/firefox:1.15.0-rolling", // Ensure this image exists in your Kasm environment
-		Cores:        2,
-		Memory:       2048, // Adjust this value if needed to match the Kasm API's expected unit
-		FriendlyName: "Ubuntu Test Workspace",
-		Description:  "Test workspace for Firefox",
+	runConfig := models.DockerRunConfig{
+		Name:       "test",
+		Hostname:   "test",
+		Network:    "test",
+		CapAdd:     []string{"NET_ADMIN"},
+		Privileged: false,
+		Init:       true,
+		Environment: map[string]string{
+			"DISPLAY": ":1",
+		},
 	}
 
-	// Provide volume mounts as map[string]string
-	details := userParser.UserDetails{
-		VolumeMounts: map[string]string{
-			"/tmp": "/container:rw", // Ensure this path is valid for your environment
-		},
-		EnvironmentArgs: map[string]string{
-			"EXAMPLE_ENV_VAR": "test-value",
-		},
-		Network: "test", // Use a valid network that exists in your Kasm configuration
+	// Define the image and username details for the workspace to create
+	imageDetail := models.TargetImage{
+		FriendlyName:         "Ubuntu Test Workspace",
+		Description:          "Test workspace for Firefox",
+		Cores:                2,
+		Memory:               2048,
+		Name:                 "kasmweb/firefox:1.15.0-rolling",
+		RestrictNetworkNames: []string{"test"},
+		RunConfig:            runConfig,
+		Notes:                "Test workspace for Firefox",
 	}
 
-	// Call the function under test
-	err := internal.CreateKasmWorkspace(ctx, imageDetail, details, kApi)
+	// Attempt to create the workspace
+	wkspc, err := workspaceService.CreateWorkspace(imageDetail)
 
 	// Log and assert results
 	if err != nil {
@@ -49,10 +58,10 @@ func TestCreateKasmWorkspace(t *testing.T) {
 		return
 	}
 	log.Info().Msg("Workspace created successfully")
-	assert.NoError(t, err, "Expected no error from CreateKasmWorkspace")
+	assert.NotNil(t, wkspc, "Expected a valid workspace to be created")
 
 	// Verify that the image was actually created by listing images
-	imagesAvailable, listErr := kApi.ListImages(ctx)
+	imagesAvailable, listErr := imageService.ListImages()
 	if listErr != nil {
 		log.Error().Err(listErr).Msg("Could not list images after workspace creation")
 		assert.Fail(t, "Expected no error listing images", listErr)

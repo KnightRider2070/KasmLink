@@ -32,16 +32,55 @@ type UserDetails struct {
 
 // UserParser is responsible for managing and updating configurations.
 type UserParser struct {
-	mutex sync.Mutex
+	mutex       sync.Mutex
+	configCache map[string]*DeploymentConfig
 }
 
 // NewUserParser creates and returns a new UserParser instance.
 func NewUserParser() *UserParser {
-	return &UserParser{}
+	return &UserParser{
+		configCache: make(map[string]*DeploymentConfig),
+	}
+}
+
+// normalizeDeploymentConfig ensures all fields are consistently initialized.
+func normalizeDeploymentConfig(config *DeploymentConfig) {
+	for i := range config.Workspaces {
+		if config.Workspaces[i].ImageConfig.RestrictNetworkNames == nil {
+			config.Workspaces[i].ImageConfig.RestrictNetworkNames = []string{}
+		}
+		if config.Workspaces[i].ImageConfig.Categories == nil {
+			config.Workspaces[i].ImageConfig.Categories = []string{}
+		}
+		if config.Workspaces[i].ImageConfig.ExecConfig == nil {
+			config.Workspaces[i].ImageConfig.ExecConfig = map[string]interface{}{}
+		}
+		if config.Workspaces[i].ImageConfig.LaunchConfig == nil {
+			config.Workspaces[i].ImageConfig.LaunchConfig = map[string]interface{}{}
+		}
+	}
+
+	for i := range config.Users {
+		if config.Users[i].Environment == nil {
+			config.Users[i].Environment = map[string]string{}
+		}
+		if config.Users[i].VolumeMounts == nil {
+			config.Users[i].VolumeMounts = map[string]string{}
+		}
+	}
 }
 
 // LoadDeploymentConfig loads the YAML configuration from a file.
 func (u *UserParser) LoadDeploymentConfig(path string) (*DeploymentConfig, error) {
+	u.mutex.Lock()
+	defer u.mutex.Unlock()
+
+	// Return cached config if it exists
+	if config, exists := u.configCache[path]; exists {
+		log.Debug().Str("path", path).Msg("Returning cached configuration")
+		return config, nil
+	}
+
 	log.Debug().Str("path", path).Msg("Loading deployment configuration file")
 	file, err := os.Open(path)
 	if err != nil {
@@ -56,6 +95,9 @@ func (u *UserParser) LoadDeploymentConfig(path string) (*DeploymentConfig, error
 		log.Error().Err(err).Str("path", path).Msg("Failed to decode YAML configuration")
 		return nil, fmt.Errorf("failed to decode YAML configuration: %w", err)
 	}
+
+	normalizeDeploymentConfig(&config)
+	u.configCache[path] = &config
 
 	log.Debug().Str("path", path).
 		Int("workspace_count", len(config.Workspaces)).
@@ -74,10 +116,16 @@ func (u *UserParser) SaveDeploymentConfig(path string, config *DeploymentConfig)
 		return fmt.Errorf("failed to marshal updated configuration: %w", err)
 	}
 
+	u.mutex.Lock()
+	defer u.mutex.Unlock()
+
 	if err := os.WriteFile(path, data, 0644); err != nil {
 		log.Error().Err(err).Str("path", path).Msg("Failed to write updated configuration to file")
 		return fmt.Errorf("failed to write updated configuration to file: %w", err)
 	}
+
+	// Update cache
+	u.configCache[path] = config
 
 	log.Info().Str("path", path).Msg("Configuration updated successfully")
 	return nil
@@ -85,9 +133,6 @@ func (u *UserParser) SaveDeploymentConfig(path string, config *DeploymentConfig)
 
 // UpdateUserDetails updates a specific user's configuration.
 func (u *UserParser) UpdateUserDetails(path, username, newUserID, newKasmSessionID string) error {
-	u.mutex.Lock()
-	defer u.mutex.Unlock()
-
 	log.Info().Str("username", username).Str("path", path).Msg("Updating user in configuration")
 
 	config, err := u.LoadDeploymentConfig(path)
@@ -115,37 +160,33 @@ func (u *UserParser) UpdateUserDetails(path, username, newUserID, newKasmSession
 		return fmt.Errorf("user %s not found in configuration", username)
 	}
 
-	if err := u.SaveDeploymentConfig(path, config); err != nil {
-		return err
-	}
-
-	log.Info().Str("username", username).Msg("User updated successfully")
-	return nil
+	return u.SaveDeploymentConfig(path, config)
 }
 
 // ValidateDeploymentConfig validates the entire deployment configuration.
 func (u *UserParser) ValidateDeploymentConfig(config *DeploymentConfig) error {
-	workspaceMap := make(map[string]WorkspaceConfig)
+	workspaceIDs := make(map[string]bool)
 	for _, workspace := range config.Workspaces {
-		workspaceMap[workspace.WorkspaceID] = workspace
+		if workspace.WorkspaceID == "" {
+			return errors.New("workspace ID cannot be empty")
+		}
+		if workspaceIDs[workspace.WorkspaceID] {
+			return fmt.Errorf("duplicate workspace ID found: %s", workspace.WorkspaceID)
+		}
+		workspaceIDs[workspace.WorkspaceID] = true
 	}
 
 	for _, user := range config.Users {
 		if user.TargetUser.Username == "" {
-			log.Error().Msg("Invalid configuration: Missing username")
-			return errors.New("invalid configuration: missing username")
+			return errors.New("user must have a username")
 		}
 		if user.WorkspaceID == "" {
-			log.Error().Msg("Invalid configuration: Missing workspace ID")
-			return errors.New("invalid configuration: missing workspace ID")
+			return fmt.Errorf("user %s must reference a workspace", user.TargetUser.Username)
 		}
-		if _, exists := workspaceMap[user.WorkspaceID]; !exists {
-			log.Error().Str("workspace_id", user.WorkspaceID).Msg("Invalid configuration: Workspace ID not found")
-			return fmt.Errorf("invalid configuration: workspace ID %s not found", user.WorkspaceID)
+		if !workspaceIDs[user.WorkspaceID] {
+			return fmt.Errorf("user %s references nonexistent workspace %s", user.TargetUser.Username, user.WorkspaceID)
 		}
 	}
-
-	log.Debug().Msg("Configuration validation passed")
 	return nil
 }
 
@@ -171,4 +212,16 @@ func (u *UserParser) FindWorkspaceByID(config *DeploymentConfig, workspaceID str
 	}
 	log.Warn().Str("workspace_id", workspaceID).Msg("Workspace not found in configuration")
 	return nil, fmt.Errorf("workspace %s not found in configuration", workspaceID)
+}
+
+// AddUser adds a new user to the configuration.
+func (u *UserParser) AddUser(config *DeploymentConfig, user UserDetails) error {
+	for _, existingUser := range config.Users {
+		if existingUser.TargetUser.Username == user.TargetUser.Username {
+			return fmt.Errorf("user %s already exists", user.TargetUser.Username)
+		}
+	}
+
+	config.Users = append(config.Users, user)
+	return nil
 }

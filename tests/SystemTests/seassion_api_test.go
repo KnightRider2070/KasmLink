@@ -3,120 +3,127 @@ package SystemTests
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
-	"kasmlink/pkg/webApi"
+	"kasmlink/pkg/api/http"
+	"kasmlink/pkg/api/models"
+	"kasmlink/pkg/api/sessions"
 	"testing"
 	"time"
 )
 
-//Create ssh config
-//sshConfig, _ := shadowssh.NewSSHConfig("thor", "stark", "192.168.120.5", 22, "C:\\Users\\Thor\\.ssh\\known_hosts", 10*time.Second)
-
-//Create KASM API
-//kApi := webApi.NewKasmAPI("https://192.168.120.5", "C6QmU5ohTUIE", "91MRn9E7FyBSPJ5HtexWrubIG3SYLkB5", true, 50*time.Second)
-
 func TestRequestKasm(t *testing.T) {
+	// Initialize RequestHandler
+	handler := http.NewRequestHandler(baseUrl, true)
+	kApi := sessions.NewSessionService(*handler)
 
-	kApi := webApi.NewKasmAPI(baseUrl, apiSecret, apiKeySecret, true, 100*time.Second)
+	// Create context
+	_, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
 
-	//Create context
-	ctx, _ := context.WithTimeout(context.Background(), 10000*time.Second)
-
-	userID := "a2b9d2932e484280bc0a64822a5c8d42" //testuser
-
-	imageID := "6a335ca1505a4e0eb966930823bcc691" //Brave
-
+	userID := "a2b9d2932e484280bc0a64822a5c8d42"  // testuser
+	imageID := "6a335ca1505a4e0eb966930823bcc691" // Brave
 	envArgs := map[string]string{
 		"ENV_VAR": "value",
 	}
 
-	kasmResponse, err := kApi.RequestKasmSession(ctx, userID, imageID, envArgs)
-	if err != nil {
-		return
+	req := models.RequestKasm{
+		UserID:      userID,
+		ImageID:     imageID,
+		Environment: envArgs,
 	}
 
-	assert.Contains(t, kasmResponse.Status, "starting")
-	assert.Contains(t, kasmResponse.UserID, userID)
+	kasmResponse, err := kApi.RequestSession(req)
 	assert.NoError(t, err)
+	assert.Contains(t, kasmResponse.Status, "starting")
+	assert.Equal(t, userID, kasmResponse.UserID)
 	assert.NotEmpty(t, kasmResponse.KasmID)
 	assert.NotEmpty(t, kasmResponse.SessionToken)
 }
 
 func TestGetKasmStatus(t *testing.T) {
+	// Initialize RequestHandler
+	handler := http.NewRequestHandler(baseUrl, true)
+	kApi := sessions.NewSessionService(*handler)
 
-	kApi := webApi.NewKasmAPI(baseUrl, apiSecret, apiKeySecret, true, 100*time.Second)
+	// Create context
+	_, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
 
-	//Create context
-	ctx, _ := context.WithTimeout(context.Background(), 10000*time.Second)
-
-	userID := "a2b9d2932e484280bc0a64822a5c8d42" //testuser
-
-	imageID := "6a335ca1505a4e0eb966930823bcc691" //Brave
-
+	userID := "a2b9d2932e484280bc0a64822a5c8d42"  // testuser
+	imageID := "6a335ca1505a4e0eb966930823bcc691" // Brave
 	envArgs := map[string]string{
 		"ENV_VAR": "value",
 	}
 
-	kasmResponse, err := kApi.RequestKasmSession(ctx, userID, imageID, envArgs)
-	if err != nil {
-		return
+	req := models.RequestKasm{
+		UserID:      userID,
+		ImageID:     imageID,
+		Environment: envArgs,
 	}
 
-	assert.Contains(t, kasmResponse.Status, "starting")
-	assert.Contains(t, kasmResponse.UserID, userID)
+	kasmResponse, err := kApi.RequestSession(req)
 	assert.NoError(t, err)
+	assert.Contains(t, kasmResponse.Status, "starting")
+	assert.Equal(t, userID, kasmResponse.UserID)
 	assert.NotEmpty(t, kasmResponse.KasmID)
 	assert.NotEmpty(t, kasmResponse.SessionToken)
 
-	status, err := kApi.GetKasmStatus(ctx, kasmResponse.UserID, kasmResponse.KasmID, true)
-	if err != nil {
-		return
+	statusReq := models.GetKasmStatus{
+		UserID:         userID,
+		KasmID:         kasmResponse.KasmID,
+		SkipAgentCheck: true,
 	}
 
+	status, err := kApi.GetKasmStatus(statusReq)
 	assert.NoError(t, err)
-	assert.Equal(t, status.Kasm.ImageID, imageID)
-
+	assert.Equal(t, imageID, status.Kasm.ImageID)
 }
 
 func TestDestroyKasmSession(t *testing.T) {
+	// Initialize RequestHandler
+	handler := http.NewRequestHandler(baseUrl, true)
+	kApi := sessions.NewSessionService(*handler)
 
-	kApi := webApi.NewKasmAPI(baseUrl, apiSecret, apiKeySecret, true, 100*time.Second)
+	// Create context
+	_, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
 
-	//Create context
-	ctx, _ := context.WithTimeout(context.Background(), 10000*time.Second)
-
-	userID := "a2b9d2932e484280bc0a64822a5c8d42" //testuser
-
-	imageID := "6a335ca1505a4e0eb966930823bcc691" //Brave
-
+	userID := "a2b9d2932e484280bc0a64822a5c8d42"  // testuser
+	imageID := "6a335ca1505a4e0eb966930823bcc691" // Brave
 	envArgs := map[string]string{
 		"ENV_VAR": "value",
 	}
 
-	kasmResponse, err := kApi.RequestKasmSession(ctx, userID, imageID, envArgs)
-	if err != nil {
-		return
+	req := models.RequestKasm{
+		UserID:      userID,
+		ImageID:     imageID,
+		Environment: envArgs,
 	}
 
-	assert.Contains(t, kasmResponse.Status, "starting")
-	assert.Contains(t, kasmResponse.UserID, userID)
+	kasmResponse, err := kApi.RequestSession(req)
 	assert.NoError(t, err)
+	assert.Contains(t, kasmResponse.Status, "starting")
+	assert.Equal(t, userID, kasmResponse.UserID)
 	assert.NotEmpty(t, kasmResponse.KasmID)
 	assert.NotEmpty(t, kasmResponse.SessionToken)
 
-	status, err := kApi.GetKasmStatus(ctx, kasmResponse.UserID, kasmResponse.KasmID, true)
-	if err != nil {
-		return
+	statusReq := models.GetKasmStatus{
+		UserID:         userID,
+		KasmID:         kasmResponse.KasmID,
+		SkipAgentCheck: true,
 	}
 
+	status, err := kApi.GetKasmStatus(statusReq)
 	assert.NoError(t, err)
-	assert.Equal(t, status.Kasm.ImageID, imageID)
+	assert.Equal(t, imageID, status.Kasm.ImageID)
 
-	err = kApi.DestroyKasmSession(ctx, kasmResponse.KasmID, userID)
+	destroyReq := models.DestroyKasmRequest{
+		UserID: userID,
+		KasmID: kasmResponse.KasmID,
+	}
 
+	err = kApi.DestroyKasmSession(destroyReq)
 	assert.NoError(t, err)
-
 }
 
 func TestExecCommand(t *testing.T) {
-
 }

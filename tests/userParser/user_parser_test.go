@@ -1,7 +1,6 @@
 package test
 
 import (
-	"encoding/json"
 	"kasmlink/pkg/userParser"
 	"os"
 	"testing"
@@ -64,7 +63,15 @@ func TestSaveConfig(t *testing.T) {
 		Workspaces: []userParser.WorkspaceConfig{
 			{
 				WorkspaceID: "workspace1",
-				ImageConfig: models.TargetImage{Name: "image1"},
+				ImageConfig: models.TargetImage{
+					FriendlyName: "image1",
+					Name:         "image1",
+					// Ensure other fields match the actual default state.
+					RestrictNetworkNames: []string{}, // Use empty slice instead of nil.
+					Categories:           []string{},
+					ExecConfig:           map[string]interface{}{},
+					LaunchConfig:         map[string]interface{}{},
+				},
 			},
 		},
 		Users: []userParser.UserDetails{
@@ -87,22 +94,8 @@ func TestSaveConfig(t *testing.T) {
 	loadedConfig, err := parser.LoadDeploymentConfig(tempFilePath)
 	require.NoError(t, err)
 
-	// Normalize the loaded configuration for comparison
-	normalizeDeploymentConfig(config)
-	normalizeDeploymentConfig(loadedConfig)
+	assert.EqualValues(t, config, loadedConfig)
 
-	assert.Equal(t, config, loadedConfig)
-}
-
-func normalizeDeploymentConfig(config *userParser.DeploymentConfig) {
-	for i := range config.Workspaces {
-		if config.Workspaces[i].ImageConfig.LaunchConfig == nil {
-			config.Workspaces[i].ImageConfig.LaunchConfig = json.RawMessage{}
-		}
-		if config.Workspaces[i].ImageConfig.RestrictNetworkNames == nil {
-			config.Workspaces[i].ImageConfig.RestrictNetworkNames = []string{}
-		}
-	}
 }
 
 func TestUpdateUserConfig(t *testing.T) {
