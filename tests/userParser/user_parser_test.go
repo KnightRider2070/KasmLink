@@ -1,4 +1,4 @@
-package test
+package userParser_tests
 
 import (
 	"kasmlink/pkg/userParser"

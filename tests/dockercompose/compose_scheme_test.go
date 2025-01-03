@@ -1,4 +1,4 @@
-package tests
+package dockercompose_tests
 
 import (
 	"encoding/json"

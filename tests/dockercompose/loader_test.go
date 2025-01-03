@@ -1,4 +1,4 @@
-package tests
+package dockercompose_tests
 
 import (
 	"github.com/stretchr/testify/assert"

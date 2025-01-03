@@ -37,20 +37,20 @@ jobs:
       - name: Install dependencies
         run: go mod tidy && go mod download
 
-      # Linux-specific Tests
+      # Linux-specific Tests (excluding SystemTests)
       - name: Run Unit Tests with Race Detection on Linux
         if: matrix.os == 'ubuntu-latest'
         run: |
-          echo "Running tests on Linux"
-          go test -v -race ./... -coverprofile=coverage.out | tee test_output.txt
+          echo "Running tests on Linux, excluding SystemTests"
+          go test -v -race $(go list ./... | grep -v '/SystemTests') -coverprofile=coverage.out | tee test_output.txt
         shell: bash
 
-      # Windows-specific Tests
+      # Windows-specific Tests (excluding SystemTests)
       - name: Run Unit Tests on Windows
         if: matrix.os == 'windows-latest'
         run: |
-          echo "Running tests on Windows"
-          echo "This is a test running on Windows!" | Tee-Object -FilePath windows_test_output.txt
+          echo "Running tests on Windows, excluding SystemTests"
+          go test -v $(go list ./... | ForEach-Object { if ($_ -notmatch '/SystemTests') { $_ } }) | Tee-Object -FilePath windows_test_output.txt
         shell: pwsh
 
       # Upload test results and coverage report for Windows

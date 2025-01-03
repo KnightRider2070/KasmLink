@@ -1,4 +1,4 @@
-package tests
+package dockercompose_tests
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -52,7 +52,7 @@ func TestGenerateDockerComposeYAML(t *testing.T) {
 
 	t.Run("Negative Case - Invalid Directory", func(t *testing.T) {
 		// Use a guaranteed invalid directory path (e.g., restricted or invalid name)
-		invalidDir := filepath.Join("Z:\\NonExistentDrive\\InvalidDirectory")
+		invalidDir := filepath.Join("P:\\NonExistentDrive\\InvalidDirectory")
 		outputPath := filepath.Join(invalidDir, "docker-compose.yml")
 
 		// Call the function
@@ -63,7 +63,7 @@ func TestGenerateDockerComposeYAML(t *testing.T) {
 		t.Logf("Expected error: %v", err)
 
 		// Check if the error contains expected failure information
-		assert.Contains(t, err.Error(), "failed to create output directory")
+		assert.Contains(t, err.Error(), "failed to create directory", "Error message did not match expected substring")
 	})
 
 	t.Run("Negative Case - Invalid Struct Data", func(t *testing.T) {

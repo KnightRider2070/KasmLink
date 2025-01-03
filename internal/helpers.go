@@ -3,7 +3,6 @@ package internal
 import (
 	"context"
 	"fmt"
-	"kasmlink/pkg/api/images"
 	"kasmlink/pkg/api/models"
 	"kasmlink/pkg/api/user"
 	"strings"
@@ -101,25 +100,4 @@ func ParseVolumeMounts(details userParser.UserDetails) (map[string]models.Volume
 	}
 
 	return volumeMappings, nil
-}
-
-// GetImageIDByTag retrieves the image ID using the tag from the Kasm API.
-func GetImageIDByTag(ctx context.Context, api *images.ImageService, imageTag string) (string, error) {
-	log.Info().Str("image_tag", imageTag).Msg("Fetching image ID by tag via API.")
-
-	images, err := api.ListImages()
-	if err != nil {
-		log.Error().Err(err).Str("image_tag", imageTag).Msg("Failed to list images.")
-		return "", fmt.Errorf("failed to list images: %w", err)
-	}
-
-	for _, img := range images {
-		if img.ImageSrc == imageTag {
-			log.Info().Str("image_tag", imageTag).Str("image_id", img.ImageID).Msg("Image found.")
-			return img.ImageID, nil
-		}
-	}
-
-	log.Warn().Str("image_tag", imageTag).Msg("No matching image found.")
-	return "", fmt.Errorf("no image found with tag: %s", imageTag)
 }

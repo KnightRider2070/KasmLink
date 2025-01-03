@@ -1,4 +1,4 @@
-package dockercli
+package dockercli_test
 
 import (
 	"bytes"

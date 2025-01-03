@@ -1,4 +1,4 @@
-package dockercli
+package dockercli_test
 
 import (
 	"context"
@@ -9,17 +9,6 @@ import (
 	"path/filepath"
 	"testing"
 )
-
-// MockExecutor is a mock implementation of the CommandExecutor interface.
-type MockExecutor struct {
-	mock.Mock
-}
-
-// Execute mocks the Execute method of the CommandExecutor interface.
-func (m *MockExecutor) Execute(ctx context.Context, command string, args ...string) ([]byte, error) {
-	argsList := m.Called(ctx, command, args)
-	return argsList.Get(0).([]byte), argsList.Error(1)
-}
 
 // Helper function to set up a temporary test directory
 func setupTestContextDir(t *testing.T) string {
