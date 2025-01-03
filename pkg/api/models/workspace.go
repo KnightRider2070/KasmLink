@@ -1,5 +1,40 @@
 package models
 
+import "encoding/json"
+
+type JSONField struct {
+	Raw json.RawMessage
+}
+
+// MarshalJSON ensures `JSONField` is serialized as a JSON string for requests.
+func (f JSONField) MarshalJSON() ([]byte, error) {
+	return json.Marshal(string(f.Raw))
+}
+
+// UnmarshalJSON handles both string and object inputs for responses.
+func (f *JSONField) UnmarshalJSON(data []byte) error {
+	// Check if input is a quoted string (stringified JSON)
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		f.Raw = json.RawMessage(str)
+		return nil
+	}
+
+	// Otherwise, treat input as a JSON object
+	f.Raw = json.RawMessage(data)
+	return nil
+}
+
+// String returns the JSON as a string.
+func (f JSONField) String() string {
+	return string(f.Raw)
+}
+
+// Object unmarshals the JSON into a provided object.
+func (f JSONField) Object(v interface{}) error {
+	return json.Unmarshal(f.Raw, v)
+}
+
 type TargetImage struct {
 	// Shared fields between TargetImage and ImageDetail
 	ImageID                string                 `json:"image_id,omitempty"`
@@ -30,8 +65,8 @@ type TargetImage struct {
 	OverrideEgressGateways bool                   `json:"override_egress_gateways"`
 	ExecConfig             map[string]interface{} `json:"exec_config,omitempty"`
 	LaunchConfig           map[string]interface{} `json:"launch_config,omitempty"`
-	VolumeMappings         string                 `json:"volume_mappings,omitempty"`
-	RunConfig              string                 `json:"run_config,omitempty"`
+	VolumeMappings         JSONField              `json:"volume_mappings,omitempty"`
+	RunConfig              JSONField              `json:"run_config,omitempty"`
 	Available              bool                   `json:"available,omitempty"`
 
 	// Fields specific to TargetImage

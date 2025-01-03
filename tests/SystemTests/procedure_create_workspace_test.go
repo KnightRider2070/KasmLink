@@ -34,11 +34,7 @@ func TestCreateKasmWorkspace(t *testing.T) {
 			"DISPLAY": ":1",
 		},
 	}
-
-	runJSON, err := json.Marshal(runConfig)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to serialize volume_mappings")
-	}
+	runConfigJSON, _ := json.Marshal(runConfig)
 
 	volumeMappings := map[string]models.VolumeMapping{
 		"/mnt/kasm_user_share": {
@@ -48,19 +44,15 @@ func TestCreateKasmWorkspace(t *testing.T) {
 			Uid:  1000,
 		},
 	}
-
-	volumeMappingsJSON, err := json.Marshal(volumeMappings)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to serialize volume_mappings")
-	}
+	volumeMappingsJSON, _ := json.Marshal(volumeMappings)
 
 	// Minimal volume_mappings
 	workspaceDetail := models.TargetImage{
 		FriendlyName:    "Ubuntu Test Workspace",
 		DockerImageName: "kasmweb/firefox:1.15.0-rolling",
 		ImageType:       "Container",
-		RunConfig:       string(runJSON),
-		VolumeMappings:  string(volumeMappingsJSON),
+		RunConfig:       models.JSONField{Raw: runConfigJSON},
+		VolumeMappings:  models.JSONField{Raw: volumeMappingsJSON},
 	}
 
 	// Attempt to create the workspace
