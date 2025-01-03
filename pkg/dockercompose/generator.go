@@ -37,24 +37,30 @@ func GenerateDockerComposeYAML(composeFile DockerCompose, outputPath string) err
 
 // validateDirectory checks if the directory exists and is writable.
 func validateDirectory(dir string) error {
-	if _, err := os.Stat(dir); err != nil {
+	// Check if the directory exists
+	info, err := os.Stat(dir)
+	if err != nil {
 		if os.IsNotExist(err) {
-			// Attempt to create the directory if it doesn't exist
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				return fmt.Errorf("failed to create directory: %w", err)
-			}
-		} else {
-			return fmt.Errorf("failed to access directory: %w", err)
+			// Fail for non-existent directories on Windows and Linux
+			return fmt.Errorf("directory does not exist: %s", dir)
 		}
+		// Fail for other access issues
+		return fmt.Errorf("failed to access directory: %w", err)
 	}
 
-	// Test if the directory is writable by creating a temp file
-	tempFile, err := os.CreateTemp(dir, "test")
+	// Ensure the path is a directory
+	if !info.IsDir() {
+		return fmt.Errorf("path is not a directory: %s", dir)
+	}
+
+	// Test if the directory is writable
+	testFilePath := filepath.Join(dir, "testfile.tmp")
+	testFile, err := os.Create(testFilePath)
 	if err != nil {
 		return fmt.Errorf("directory is not writable: %w", err)
 	}
-	tempFile.Close()
-	os.Remove(tempFile.Name())
+	testFile.Close()
+	os.Remove(testFilePath)
 
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"kasmlink/pkg/dockercompose"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -51,19 +52,24 @@ func TestGenerateDockerComposeYAML(t *testing.T) {
 	})
 
 	t.Run("Negative Case - Invalid Directory", func(t *testing.T) {
-		// Use a guaranteed invalid directory path (e.g., restricted or invalid name)
-		invalidDir := filepath.Join("P:\\NonExistentDrive\\InvalidDirectory")
+		// Use an invalid directory path that fails on both Windows and Linux
+		var invalidDir string
+		if runtime.GOOS == "windows" {
+			invalidDir = filepath.Join("P:\\NonExistentDrive\\InvalidDirectory")
+		} else {
+			invalidDir = filepath.Join("/nonexistent", "invalid_directory")
+		}
 		outputPath := filepath.Join(invalidDir, "docker-compose.yml")
 
 		// Call the function
 		err := dockercompose.GenerateDockerComposeYAML(validComposeFile, outputPath)
 
-		// Assert an error occurred
-		assert.Error(t, err)
-		t.Logf("Expected error: %v", err)
+		// Assert that an error occurred
+		assert.Error(t, err, "Expected an error for an invalid directory")
+		t.Logf("Error: %v", err)
 
 		// Check if the error contains expected failure information
-		assert.Contains(t, err.Error(), "failed to create directory", "Error message did not match expected substring")
+		assert.Contains(t, err.Error(), "directory does not exist", "Error message did not match expected substring")
 	})
 
 	t.Run("Negative Case - Invalid Struct Data", func(t *testing.T) {
