@@ -27,10 +27,15 @@ func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, docker
 	}
 	defer sshClient.Close()
 
-	// Initialize Docker Client
+	// Initialize Docker Client remote
 	executor := dockercli.NewSSHCommandExecutor(sshConfig)
 	fs := dockercli.NewRemoteFileSystem(sshClient)
-	dockerClient := dockercli.NewDockerClient(executor, fs)
+	dockerClientRemote := dockercli.NewDockerClient(executor, fs)
+
+	// Initialize Docker Client local
+	executorLocal := dockercli.NewDefaultCommandExecutor()
+	fsLocal := dockercli.NewLocalFileSystem()
+	dockerClientLocal := dockercli.NewDockerClient(executorLocal, fsLocal)
 
 	// Step 1: Load deployment configuration from YAML file
 	log.Info().Str("config_file", deploymentConfigFilePath).Msg("Loading deployment configuration from YAML file")
@@ -63,7 +68,7 @@ func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, docker
 		}
 
 		// Step 2.1: Check if the Docker image exists and deploy if missing
-		if err := ensureDockerImage(ctx, dockerClient, workspaceConfig.ImageConfig.DockerImageName, dockerfilePath, buildContextDir, sshConfig); err != nil {
+		if err := ensureDockerImage(ctx, dockerClientLocal, dockerClientRemote, workspaceConfig.ImageConfig.DockerImageName, dockerfilePath, buildContextDir, sshConfig); err != nil {
 			return fmt.Errorf("failed to ensure Docker image for user %s: %w", user.TargetUser.Username, err)
 		}
 
@@ -78,9 +83,9 @@ func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, docker
 }
 
 // ensureDockerImage checks if a Docker image exists and deploys it if missing.
-func ensureDockerImage(ctx context.Context, dockerClient *dockercli.DockerClient, imageTag, dockerfilePath, buildContextDir string, sshConfig *shadowssh.Config) error {
-	log.Info().Str("image_tag", imageTag).Msg("Retrieving Docker images")
-	images, err := dockerClient.ListImages(ctx, dockercli.ListImagesOptions{})
+func ensureDockerImage(ctx context.Context, dockerClientLocal, dockerClientRemote *dockercli.DockerClient, imageTag, dockerfilePath, buildContextDir string, sshConfig *shadowssh.Config) error {
+	log.Info().Str("image_tag", imageTag).Msg("Retrieving Docker images on remote node")
+	images, err := dockerClientRemote.ListImages(ctx, dockercli.ListImagesOptions{})
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to retrieve Docker images")
 		return fmt.Errorf("failed to retrieve Docker images: %w", err)
@@ -94,7 +99,28 @@ func ensureDockerImage(ctx context.Context, dockerClient *dockercli.DockerClient
 		}
 	}
 
-	log.Info().Str("image_tag", imageTag).Msg("Docker image not found. Attempting remote build.")
+	log.Info().Str("image_tag", imageTag).Msg("Docker image not found. Attempting remote pull.")
+
+	// Attempt to pull the image remotely
+	if err := dockerClientRemote.PullImage(ctx, imageTag); err == nil {
+		log.Info().Str("image_tag", imageTag).Msg("Docker image pulled successfully.")
+		return nil
+	}
+
+	log.Warn().Str("image_tag", imageTag).Msg("Remote pull failed. Falling back to local pull.")
+
+	// Try to pull the image locally
+	if err := dockerClientLocal.PullImage(ctx, imageTag); err == nil {
+		// Export the image to a tarball and transfer it to the remote node
+		if err := dockerClientLocal.TransferImage(ctx, imageTag, sshConfig); err != nil {
+			log.Error().Err(err).Msg("Failed to transfer Docker image")
+			return fmt.Errorf("failed to transfer Docker image: %w", err)
+		}
+		log.Info().Str("image_tag", imageTag).Msg("Docker image transferred successfully.")
+		return nil
+	}
+
+	log.Info().Str("image_tag", imageTag).Msg("Docker image failed to pull locally. Attempting to build remote")
 
 	// Attempt to build the image remotely
 	options := dockercli.BuildImageOptions{
@@ -103,20 +129,14 @@ func ensureDockerImage(ctx context.Context, dockerClient *dockercli.DockerClient
 		ImageTag:       imageTag,
 		SSH:            sshConfig,
 	}
-	if err := dockercli.BuildImage(ctx, dockerClient, options); err == nil {
+	if err := dockercli.BuildImage(ctx, dockerClientRemote, options); err == nil {
 		log.Info().Str("image_tag", imageTag).Msg("Docker image built successfully on remote node.")
 		return nil
 	}
 
 	log.Warn().Str("image_tag", imageTag).Msg("Remote build failed. Falling back to local build and transfer.")
 
-	// Use the TransferImage function for local build and transfer
-	dockerclient := dockercli.NewDockerClient(
-		dockercli.NewDefaultCommandExecutor(),
-		dockercli.NewLocalFileSystem(),
-	)
-
-	if err := dockerclient.TransferImage(ctx, imageTag, sshConfig); err != nil {
+	if err := dockerClientLocal.TransferImage(ctx, imageTag, sshConfig); err != nil {
 		log.Error().Err(err).Msg("Failed to transfer Docker image")
 		return fmt.Errorf("failed to transfer Docker image: %w", err)
 	}

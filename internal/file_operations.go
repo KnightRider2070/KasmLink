@@ -129,7 +129,7 @@ func copyEmbeddedFiles(embeddedFS fs.FS, sourcePath, targetFolder string) error 
 // Returns:
 // - An error if the initialization fails.
 func InitTemplatesFolder(folderPath string) error {
-	return InitFolder(folderPath, "templates", "templates", embedfiles.EmbeddedServicesDirectory)
+	return InitFolder(folderPath, "templates", "templates", embedfiles.EmbeddedTemplateFS)
 }
 
 // InitDockerfilesFolder initializes the Dockerfiles folder with embedded Dockerfile templates.

@@ -17,6 +17,14 @@ const (
 	GetWorkspacesEndpoint   = "/api/public/get_images"
 )
 
+//NOTE: Usage of the api endpoints can break at any point after an update,
+//since the endpoints are suspect to change and not documented by Kasm.
+//They were retrieved using https://kasmweb.atlassian.net/servicedesk/customer/portal/3/article/10682377.
+//The Kasm version is 1.16.0
+//Also variables {username},{user_id},{image_id} are dynamically substituted volume mappings,
+//see https://kasmweb.com/docs/latest/guide/persistent_data/persistent_profiles.html.
+//Might as well work for run or exec configuration of workspace.
+
 // WorkspaceService provides methods to manage workspaces.
 type WorkspaceService struct {
 	*base.BaseService

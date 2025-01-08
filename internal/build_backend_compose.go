@@ -17,6 +17,7 @@ import (
 )
 
 // DeployBackendServices deploys backend services using Docker Compose on a remote server.
+// Validates the Docker Compose file, checks for missing images, transfers them, and runs `docker compose up` remotely.
 func DeployBackendServices(ctx context.Context, backendComposePath string, sshConfig *shadowssh.Config, dockerClient *dockercli.DockerClient) error {
 	if err := validateFileExists(backendComposePath); err != nil {
 		return fmt.Errorf("validation error: %w", err)
@@ -26,6 +27,7 @@ func DeployBackendServices(ctx context.Context, backendComposePath string, sshCo
 		return fmt.Errorf("invalid SSH configuration: %w", err)
 	}
 
+	// Establish an SSH connection to the remote server.
 	sshClient, err := shadowssh.NewClient(ctx, sshConfig)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to establish SSH connection")
@@ -33,6 +35,7 @@ func DeployBackendServices(ctx context.Context, backendComposePath string, sshCo
 	}
 	defer closeSSHClient(sshClient)
 
+	// Parse and validate the Docker Compose file.
 	composeFile, err := dockercompose.LoadAndParseComposeFile(backendComposePath)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to load Docker Compose file")
@@ -44,6 +47,7 @@ func DeployBackendServices(ctx context.Context, backendComposePath string, sshCo
 		return fmt.Errorf("failed to validate Docker Compose file: %w", err)
 	}
 
+	// Extract the required images specified in the Docker Compose file.
 	requiredImages := extractRequiredImages(&composeFile)
 	remoteImages, err := dockerClient.ListImages(ctx, dockercli.ListImagesOptions{})
 	if err != nil {
@@ -51,6 +55,7 @@ func DeployBackendServices(ctx context.Context, backendComposePath string, sshCo
 		return fmt.Errorf("failed to list remote Docker images: %w", err)
 	}
 
+	// Find and transfer missing images to the remote server.
 	missingImages := findMissingImages(requiredImages, remoteImages)
 	if len(missingImages) > 0 {
 		if err := transferMissingImagesConcurrently(ctx, dockerClient, missingImages, sshConfig); err != nil {
@@ -58,6 +63,7 @@ func DeployBackendServices(ctx context.Context, backendComposePath string, sshCo
 		}
 	}
 
+	// Deploy the Docker Compose configuration remotely.
 	if err := deployCompose(ctx, backendComposePath, sshClient, sshConfig); err != nil {
 		return fmt.Errorf("deployment error: %w", err)
 	}
@@ -66,6 +72,7 @@ func DeployBackendServices(ctx context.Context, backendComposePath string, sshCo
 	return nil
 }
 
+// validateSSHConfig checks that the SSH configuration has the required fields.
 func validateSSHConfig(sshConfig *shadowssh.Config) error {
 	if sshConfig == nil || sshConfig.Host == "" || sshConfig.Username == "" {
 		return errors.New("missing required SSH configuration fields")
@@ -73,12 +80,15 @@ func validateSSHConfig(sshConfig *shadowssh.Config) error {
 	return nil
 }
 
+// closeSSHClient attempts to gracefully close the SSH connection.
 func closeSSHClient(client *shadowssh.Client) {
 	if err := client.Close(); err != nil {
 		log.Warn().Err(err).Msg("Failed to close SSH connection gracefully")
 	}
 }
 
+// extractRequiredImages gathers the images specified in the Docker Compose file.
+// It returns a slice of DockerImage objects for further processing.
 func extractRequiredImages(composeFile *dockercompose.DockerCompose) []dockercli.DockerImage {
 	var images []dockercli.DockerImage
 	for _, service := range composeFile.Services {
@@ -89,6 +99,8 @@ func extractRequiredImages(composeFile *dockercompose.DockerCompose) []dockercli
 	return images
 }
 
+// transferMissingImagesConcurrently handles the transfer of missing Docker images to the remote server.
+// Utilizes goroutines for concurrent transfers.
 func transferMissingImagesConcurrently(ctx context.Context, dockerClient *dockercli.DockerClient, missingImages []dockercli.DockerImage, sshConfig *shadowssh.Config) error {
 	log.Info().Int("count", len(missingImages)).Msg("Starting concurrent transfer of missing images")
 
@@ -109,6 +121,7 @@ func transferMissingImagesConcurrently(ctx context.Context, dockerClient *docker
 	wg.Wait()
 	close(errCh)
 
+	// Return the first error encountered, if any.
 	if len(errCh) > 0 {
 		return <-errCh
 	}
@@ -116,6 +129,7 @@ func transferMissingImagesConcurrently(ctx context.Context, dockerClient *docker
 	return nil
 }
 
+// validateFileExists ensures the given file path exists on the local system.
 func validateFileExists(path string) error {
 	log.Info().Str("path", path).Msg("Validating file existence")
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -126,6 +140,7 @@ func validateFileExists(path string) error {
 	return nil
 }
 
+// deployCompose transfers the Docker Compose file to the remote server and runs `docker compose up`.
 func deployCompose(ctx context.Context, composePath string, sshClient *shadowssh.Client, sshConfig *shadowssh.Config) error {
 	remoteDir := "/composefiles"
 	log.Info().Str("compose_path", composePath).Msg("Transferring Docker Compose file to remote host")
@@ -147,6 +162,7 @@ func deployCompose(ctx context.Context, composePath string, sshClient *shadowssh
 	return nil
 }
 
+// findMissingImages compares the required images with the remote images and identifies missing ones.
 func findMissingImages(local, remote []dockercli.DockerImage) []dockercli.DockerImage {
 	remoteMap := make(map[string]struct{}, len(remote))
 	for _, img := range remote {

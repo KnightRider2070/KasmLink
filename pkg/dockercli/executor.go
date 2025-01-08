@@ -35,7 +35,7 @@ func (e *DefaultCommandExecutor) Execute(ctx context.Context, command string, ar
 
 	log.Debug().Str("output", string(output)).Msg("Command executed successfully")
 
-	// Example: Process logs if the command is `docker build`
+	// Process logs if the command is `docker build`
 	if command == "docker" && len(args) > 0 && args[0] == "build" {
 		logReader := bytes.NewReader(output)
 		if err := PrintBuildLogs(logReader); err != nil {

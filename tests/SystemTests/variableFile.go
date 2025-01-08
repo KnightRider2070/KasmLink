@@ -1,6 +1,6 @@
 package SystemTests
 
-var alternateValues = true
+var alternateValues = false
 
 var baseUrl = "https://192.168.56.103"
 var apiSecret = "FIRsIHNjz6UG"
