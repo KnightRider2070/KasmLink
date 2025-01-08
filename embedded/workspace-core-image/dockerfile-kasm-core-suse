@@ -149,21 +149,21 @@ ADD /src/common/resources/images/egress_info.svg /usr/share/extra/icons/egress_i
 ADD /src/common/resources/images/egress_error.svg /usr/share/extra/icons/egress_error.svg
 ADD /src/common/resources/images/egress_offline.svg /usr/share/extra/icons/egress_offline.svg
 
-### Create user and home directory for base images that don't already define it
-RUN (groupadd -g 1000 kasm-user \
-    && useradd -M -u 1000 -g 1000 kasm-user \
-    && usermod -a -G kasm-user kasm-user) ; exit 0
+### Create userService and home directory for base images that don't already define it
+RUN (groupadd -g 1000 kasm-userService \
+    && useradd -M -u 1000 -g 1000 kasm-userService \
+    && usermod -a -G kasm-userService kasm-userService) ; exit 0
 ENV HOME /home/kasm-user
 WORKDIR $HOME
 RUN mkdir -p $HOME && chown -R 1000:0 $HOME
 
-### Create user exclusively for sessions recording purposes
+### Create userService exclusively for sessions recording purposes
 RUN (groupadd -g 1001 kasm-recorder \
     && useradd -M -u 1001 -g 1001 kasm-recorder \
     && usermod -a -G kasm-recorder) ; exit 0
 
 ### FIX PERMISSIONS ## Objective is to change the owner of non-home paths to root, remove write permissions, and set execute where required
-# these files are created on container first exec, by the default user, so we have to create them since default will not have write perm
+# these files are created on container first exec, by the default userService, so we have to create them since default will not have write perm
 RUN touch $STARTUPDIR/wm.log \
     && touch $STARTUPDIR/window_manager_startup.log \
     && touch $STARTUPDIR/vnc_startup.log \

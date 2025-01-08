@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"kasmlink/pkg/api/models"
-	"kasmlink/pkg/api/user"
+	"kasmlink/pkg/api/userService"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -44,9 +44,9 @@ func CheckRemoteImages(ctx context.Context, client *shadowssh.Client, images []s
 	return missing, nil
 }
 
-// CreateOrGetUser ensures a user exists in the system, creating if necessary.
-func CreateOrGetUser(ctx context.Context, api *user.UserService, user userParser.UserDetails) (string, error) {
-	log.Info().Str("username", user.TargetUser.Username).Msg("Ensuring user exists via API.")
+// CreateOrGetUser ensures a userService exists in the system, creating if necessary.
+func CreateOrGetUser(ctx context.Context, api *userService.UserService, user userParser.UserDetails) (string, error) {
+	log.Info().Str("username", user.TargetUser.Username).Msg("Ensuring userService exists via API.")
 
 	userExisting, err := api.GetUser(user.TargetUser.UserID, user.TargetUser.Username)
 	if err == nil {
@@ -68,8 +68,8 @@ func CreateOrGetUser(ctx context.Context, api *user.UserService, user userParser
 
 	createdUser, err := api.CreateUser(targetUser)
 	if err != nil {
-		log.Error().Err(err).Str("username", user.TargetUser.Username).Msg("Failed to create user.")
-		return "", fmt.Errorf("failed to create user %s: %w", user.TargetUser.Username, err)
+		log.Error().Err(err).Str("username", user.TargetUser.Username).Msg("Failed to create userService.")
+		return "", fmt.Errorf("failed to create userService %s: %w", user.TargetUser.Username, err)
 	}
 
 	log.Info().Str("username", createdUser.Username).Str("user_id", createdUser.UserID).Msg("User created successfully.")

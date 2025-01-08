@@ -57,7 +57,7 @@ func NewConfig(username, password, host string, port int, knownHostsPath string,
 	if len(knownHostsPath) >= 2 && knownHostsPath[:2] == "~/" {
 		userInfo, err := user.Current()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get current user: %w", err)
+			return nil, fmt.Errorf("failed to get current userService: %w", err)
 		}
 		knownHostsPath = filepath.Join(userInfo.HomeDir, knownHostsPath[2:])
 	}

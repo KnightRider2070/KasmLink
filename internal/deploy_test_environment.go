@@ -4,13 +4,15 @@ import (
 	"context"
 	"fmt"
 	"github.com/rs/zerolog/log"
+	"kasmlink/pkg/api/http"
+	"kasmlink/pkg/api/userService"
 	"kasmlink/pkg/dockercli"
 	"kasmlink/pkg/shadowssh"
 	"kasmlink/pkg/userParser"
 )
 
 // CreateTestEnvironment creates a test environment based on the deployment configuration file.
-func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, dockerfilePath, buildContextDir string, sshConfig *shadowssh.Config) error {
+func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, dockerfilePath, buildContextDir string, sshConfig *shadowssh.Config, handler http.RequestHandler) error {
 	// Validate required file paths
 	if deploymentConfigFilePath == "" || dockerfilePath == "" || buildContextDir == "" {
 		return fmt.Errorf("deployment configuration file, Dockerfile path, and build context directory must be specified")
@@ -53,12 +55,12 @@ func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, docker
 		workspaceMap[workspace.WorkspaceID] = workspace
 	}
 
-	// Step 2: Process each user in the configuration
+	// Step 2: Process each userService in the configuration
 	for _, user := range deploymentConfig.Users {
 		log.Info().
 			Str("username", user.TargetUser.Username).
 			Str("workspace_id", user.WorkspaceID).
-			Msg("Processing user")
+			Msg("Processing userService")
 
 		// Lookup the workspace configuration
 		workspaceConfig, ok := workspaceMap[user.WorkspaceID]
@@ -69,13 +71,30 @@ func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, docker
 
 		// Step 2.1: Check if the Docker image exists and deploy if missing
 		if err := ensureDockerImage(ctx, dockerClientLocal, dockerClientRemote, workspaceConfig.ImageConfig.DockerImageName, dockerfilePath, buildContextDir, sshConfig); err != nil {
-			return fmt.Errorf("failed to ensure Docker image for user %s: %w", user.TargetUser.Username, err)
+			return fmt.Errorf("failed to ensure Docker image for userService %s: %w", user.TargetUser.Username, err)
 		}
 
-		// Step 2.2: Assign resources and update configuration
-		if err := assignResourcesAndUpdateConfig(userParserInstance, deploymentConfigFilePath, user, workspaceConfig); err != nil {
-			return fmt.Errorf("failed to assign resources or update configuration for user %s: %w", user.TargetUser.Username, err)
+		// Step 2.2: Create or get the userService via the API
+		service := userService.NewUserService(handler)
+
+		userID, err := CreateOrGetUser(ctx, service, user)
+
+		if err != nil {
+			return fmt.Errorf("failed to create or get userService %s: %w", user.TargetUser.Username, err)
 		}
+
+		log.Info().Str("user_id", userID).Msg("User created or retrieved successfully")
+
+		user.TargetUser.UserID = userID
+
+		//TODO: Step 2.3: Assign the users a workspace or start it and dont allow them to access other workspaces
+
+		// Step 2.4: Update deployment configuration with new user details
+		if err := userParserInstance.UpdateUserDetails(deploymentConfigFilePath, user.TargetUser.Username, user.TargetUser.UserID, user.KasmSessionID); err != nil {
+			log.Error().Err(err).Str("username", user.TargetUser.Username).Msg("Failed to update userService configuration")
+			return fmt.Errorf("failed to update userService configuration for userService %s: %w", user.TargetUser.Username, err)
+		}
+		return nil
 	}
 
 	log.Info().Msg("Test environment creation completed successfully")
@@ -141,22 +160,5 @@ func ensureDockerImage(ctx context.Context, dockerClientLocal, dockerClientRemot
 		return fmt.Errorf("failed to transfer Docker image: %w", err)
 	}
 
-	return nil
-}
-
-// assignResourcesAndUpdateConfig assigns resources to a user and updates the configuration.
-func assignResourcesAndUpdateConfig(parser *userParser.UserParser, configFilePath string, user userParser.UserDetails, workspaceConfig userParser.WorkspaceConfig) error {
-	log.Info().Str("username", user.TargetUser.Username).Msg("Creating user and assigning resources")
-
-	// Generate resource identifiers
-	userID := fmt.Sprintf("generated_user_%s", user.TargetUser.Username)
-	kasmSessionID := fmt.Sprintf("session_%s", workspaceConfig.WorkspaceID)
-
-	// Update user configuration with session details
-	log.Info().Str("username", user.TargetUser.Username).Msg("Updating user configuration with session details")
-	if err := parser.UpdateUserDetails(configFilePath, user.TargetUser.Username, userID, kasmSessionID); err != nil {
-		log.Error().Err(err).Str("username", user.TargetUser.Username).Msg("Failed to update user configuration")
-		return fmt.Errorf("failed to update user configuration for user %s: %w", user.TargetUser.Username, err)
-	}
 	return nil
 }

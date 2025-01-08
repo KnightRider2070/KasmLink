@@ -15,15 +15,15 @@ type WorkspaceConfig struct {
 	ImageConfig models.TargetImage `yaml:"image_config"` // Target image configuration
 }
 
-// DeploymentConfig represents the full YAML structure with shared workspaces and user details.
+// DeploymentConfig represents the full YAML structure with shared workspaces and userService details.
 type DeploymentConfig struct {
 	Workspaces []WorkspaceConfig `yaml:"workspaces"` // Shared workspace configurations
 	Users      []UserDetails     `yaml:"users"`      // Users with references to workspaces
 }
 
-// UserDetails represents details for a specific user in the configuration.
+// UserDetails represents details for a specific userService in the configuration.
 type UserDetails struct {
-	TargetUser    models.TargetUser `yaml:"target_user"`     // Target user details
+	TargetUser    models.TargetUser `yaml:"target_user"`     // Target userService details
 	WorkspaceID   string            `yaml:"workspace_id"`    // Reference to a shared workspace configuration
 	KasmSessionID string            `yaml:"kasm_session_id"` // Kasm session ID
 	Environment   map[string]string `yaml:"environment"`     // User-specific environment variables
@@ -131,9 +131,9 @@ func (u *UserParser) SaveDeploymentConfig(path string, config *DeploymentConfig)
 	return nil
 }
 
-// UpdateUserDetails updates a specific user's configuration.
+// UpdateUserDetails updates a specific userService's configuration.
 func (u *UserParser) UpdateUserDetails(path, username, newUserID, newKasmSessionID string) error {
-	log.Info().Str("username", username).Str("path", path).Msg("Updating user in configuration")
+	log.Info().Str("username", username).Str("path", path).Msg("Updating userService in configuration")
 
 	config, err := u.LoadDeploymentConfig(path)
 	if err != nil {
@@ -157,7 +157,7 @@ func (u *UserParser) UpdateUserDetails(path, username, newUserID, newKasmSession
 
 	if !updated {
 		log.Warn().Str("username", username).Msg("User not found in configuration")
-		return fmt.Errorf("user %s not found in configuration", username)
+		return fmt.Errorf("userService %s not found in configuration", username)
 	}
 
 	return u.SaveDeploymentConfig(path, config)
@@ -178,19 +178,19 @@ func (u *UserParser) ValidateDeploymentConfig(config *DeploymentConfig) error {
 
 	for _, user := range config.Users {
 		if user.TargetUser.Username == "" {
-			return errors.New("user must have a username")
+			return errors.New("userService must have a username")
 		}
 		if user.WorkspaceID == "" {
-			return fmt.Errorf("user %s must reference a workspace", user.TargetUser.Username)
+			return fmt.Errorf("userService %s must reference a workspace", user.TargetUser.Username)
 		}
 		if !workspaceIDs[user.WorkspaceID] {
-			return fmt.Errorf("user %s references nonexistent workspace %s", user.TargetUser.Username, user.WorkspaceID)
+			return fmt.Errorf("userService %s references nonexistent workspace %s", user.TargetUser.Username, user.WorkspaceID)
 		}
 	}
 	return nil
 }
 
-// FindUserByUsername searches for a user by username.
+// FindUserByUsername searches for a userService by username.
 func (u *UserParser) FindUserByUsername(config *DeploymentConfig, username string) (*UserDetails, error) {
 	for _, user := range config.Users {
 		if user.TargetUser.Username == username {
@@ -199,7 +199,7 @@ func (u *UserParser) FindUserByUsername(config *DeploymentConfig, username strin
 		}
 	}
 	log.Warn().Str("username", username).Msg("User not found in configuration")
-	return nil, fmt.Errorf("user %s not found in configuration", username)
+	return nil, fmt.Errorf("userService %s not found in configuration", username)
 }
 
 // FindWorkspaceByID searches for a workspace by ID.
@@ -214,11 +214,11 @@ func (u *UserParser) FindWorkspaceByID(config *DeploymentConfig, workspaceID str
 	return nil, fmt.Errorf("workspace %s not found in configuration", workspaceID)
 }
 
-// AddUser adds a new user to the configuration.
+// AddUser adds a new userService to the configuration.
 func (u *UserParser) AddUser(config *DeploymentConfig, user UserDetails) error {
 	for _, existingUser := range config.Users {
 		if existingUser.TargetUser.Username == user.TargetUser.Username {
-			return fmt.Errorf("user %s already exists", user.TargetUser.Username)
+			return fmt.Errorf("userService %s already exists", user.TargetUser.Username)
 		}
 	}
 

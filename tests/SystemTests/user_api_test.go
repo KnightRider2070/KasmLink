@@ -5,7 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"kasmlink/pkg/api/http"
 	"kasmlink/pkg/api/models"
-	"kasmlink/pkg/api/user"
+	"kasmlink/pkg/api/userService"
 	"testing"
 	"time"
 )
@@ -13,7 +13,7 @@ import (
 func TestCreateUser(t *testing.T) {
 	// Initialize RequestHandler
 	handler := http.NewRequestHandler(baseUrl, apiSecret, apiKeySecret, true)
-	kApi := user.NewUserService(*handler)
+	kApi := userService.NewUserService(*handler)
 
 	// Create context
 	_, cancel := context.WithTimeout(context.Background(), 100*time.Second)
@@ -46,7 +46,7 @@ func TestCreateUser(t *testing.T) {
 func TestGetUser(t *testing.T) {
 	// Initialize RequestHandler
 	handler := http.NewRequestHandler(baseUrl, apiSecret, apiKeySecret, true)
-	kApi := user.NewUserService(*handler)
+	kApi := userService.NewUserService(*handler)
 
 	// Create context
 	_, cancel := context.WithTimeout(context.Background(), 100*time.Second)
@@ -86,7 +86,7 @@ func TestGetUser(t *testing.T) {
 func TestUpdateUser(t *testing.T) {
 	// Initialize RequestHandler
 	handler := http.NewRequestHandler(baseUrl, apiSecret, apiKeySecret, true)
-	kApi := user.NewUserService(*handler)
+	kApi := userService.NewUserService(*handler)
 
 	// Create context
 	_, cancel := context.WithTimeout(context.Background(), 100*time.Second)
@@ -132,7 +132,7 @@ func TestUpdateUser(t *testing.T) {
 func TestDeleteUser(t *testing.T) {
 	// Initialize RequestHandler
 	handler := http.NewRequestHandler(baseUrl, apiSecret, apiKeySecret, true)
-	kApi := user.NewUserService(*handler)
+	kApi := userService.NewUserService(*handler)
 
 	// Create context
 	_, cancel := context.WithTimeout(context.Background(), 100*time.Second)

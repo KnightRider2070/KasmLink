@@ -99,7 +99,7 @@ type DockerRunConfig struct {
 	Name       string            `json:"name,omitempty"`        // The name for this container.
 	Entrypoint []string          `json:"entrypoint,omitempty"`  // The entrypoint for the container.
 	WorkingDir string            `json:"working_dir,omitempty"` // Path to the working directory.
-	User       string            `json:"user,omitempty"`        // Username or UID to run commands as inside the container.
+	User       string            `json:"userService,omitempty"` // Username or UID to run commands as inside the container.
 	Hostname   string            `json:"hostname,omitempty"`    // Additional hostnames to resolve inside the container, as a mapping of hostname to IP address.
 	Domainname string            `json:"domainname,omitempty"`  // Set custom DNS search domains.
 	Platform   string            `json:"platform,omitempty"`    // Platform in the format os[/arch[/variant]]. Only used if the method needs to pull the requested image.
@@ -147,7 +147,7 @@ type DockerRunConfig struct {
 	// Security
 	SecurityOpt []string          `json:"security_opt,omitempty"` // A list of string values to customize labels for MLS systems, such as SELinux.
 	Privileged  bool              `json:"privileged,omitempty"`   // Give extended privileges to this container.
-	UsernsMode  string            `json:"userns_mode,omitempty"`  // Sets the user namespace mode for the container when user namespace remapping option is enabled. Supported values are: host
+	UsernsMode  string            `json:"userns_mode,omitempty"`  // Sets the userService namespace mode for the container when userService namespace remapping option is enabled. Supported values are: host
 	IpcMode     string            `json:"ipc_mode,omitempty"`     // Set the IPC mode for the container.
 	PidMode     string            `json:"pid_mode,omitempty"`     // If set to host, use the host PID namespace inside the container.
 	UtsMode     string            `json:"uts_mode,omitempty"`     // Sets the UTS namespace mode for the container. Supported values are: host

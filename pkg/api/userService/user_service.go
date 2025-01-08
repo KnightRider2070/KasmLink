@@ -1,4 +1,4 @@
-package user
+package userService
 
 import (
 	"fmt"
@@ -35,10 +35,10 @@ func NewUserService(handler http.RequestHandler) *UserService {
 	}
 }
 
-// CreateUser sends a request to create a user.
+// CreateUser sends a request to create a userService.
 func (us *UserService) CreateUser(user models.TargetUser) (*models.UserResponse, error) {
 	url := fmt.Sprintf("%s%s", us.BaseURL, CreateUserEndpoint)
-	log.Info().Str("url", url).Str("username", user.Username).Msg("Creating new user.")
+	log.Info().Str("url", url).Str("username", user.Username).Msg("Creating new userService.")
 
 	payload := us.BuildPayload(map[string]interface{}{
 		"target_user": user,
@@ -46,7 +46,7 @@ func (us *UserService) CreateUser(user models.TargetUser) (*models.UserResponse,
 
 	var createdUser models.UserResponse
 	if err := us.ExecuteRequest(url, payload, &createdUser); err != nil {
-		log.Error().Err(err).Msg("Failed to create user.")
+		log.Error().Err(err).Msg("Failed to create userService.")
 		return nil, err
 	}
 
@@ -73,14 +73,14 @@ func (us *UserService) GetUsers() ([]models.UserResponse, error) {
 	return parsedResponse.Users, nil
 }
 
-// GetUser retrieves user details by userID or username.
+// GetUser retrieves userService details by userID or username.
 func (us *UserService) GetUser(userID, username string) (*models.UserResponse, error) {
 	url := fmt.Sprintf("%s%s", us.BaseURL, GetUserEndpoint)
 	log.Info().
 		Str("url", url).
 		Str("user_id", userID).
 		Str("username", username).
-		Msg("Fetching user details.")
+		Msg("Fetching userService details.")
 
 	payload := us.BuildPayload(map[string]interface{}{
 		"target_user": map[string]string{
@@ -91,7 +91,7 @@ func (us *UserService) GetUser(userID, username string) (*models.UserResponse, e
 
 	var user models.UserResponse
 	if err := us.ExecuteRequest(url, payload, &user); err != nil {
-		log.Error().Err(err).Str("user_id", userID).Msg("Failed to fetch user details.")
+		log.Error().Err(err).Str("user_id", userID).Msg("Failed to fetch userService details.")
 		return nil, err
 	}
 
@@ -99,13 +99,13 @@ func (us *UserService) GetUser(userID, username string) (*models.UserResponse, e
 	return &user, nil
 }
 
-// UpdateUser updates an existing user's details.
+// UpdateUser updates an existing userService's details.
 func (us *UserService) UpdateUser(user models.TargetUser) (*models.UserResponse, error) {
 	url := fmt.Sprintf("%s%s", us.BaseURL, UpdateUserEndpoint)
 	log.Info().
 		Str("url", url).
 		Str("user_id", user.UserID).
-		Msg("Updating user details.")
+		Msg("Updating userService details.")
 
 	payload := us.BuildPayload(map[string]interface{}{
 		"target_user": user,
@@ -113,7 +113,7 @@ func (us *UserService) UpdateUser(user models.TargetUser) (*models.UserResponse,
 
 	var updatedUser models.UserResponse
 	if err := us.ExecuteRequest(url, payload, &updatedUser); err != nil {
-		log.Error().Err(err).Str("user_id", user.UserID).Msg("Failed to update user.")
+		log.Error().Err(err).Str("user_id", user.UserID).Msg("Failed to update userService.")
 		return nil, err
 	}
 
@@ -121,14 +121,14 @@ func (us *UserService) UpdateUser(user models.TargetUser) (*models.UserResponse,
 	return &updatedUser, nil
 }
 
-// DeleteUser removes a user by userID with optional force.
+// DeleteUser removes a userService by userID with optional force.
 func (us *UserService) DeleteUser(userID string, force bool) error {
 	url := fmt.Sprintf("%s%s", us.BaseURL, DeleteUserEndpoint)
 	log.Info().
 		Str("url", url).
 		Str("user_id", userID).
 		Bool("force", force).
-		Msg("Deleting user.")
+		Msg("Deleting userService.")
 
 	payload := us.BuildPayload(map[string]interface{}{
 		"target_user": map[string]string{
@@ -138,7 +138,7 @@ func (us *UserService) DeleteUser(userID string, force bool) error {
 	})
 
 	if err := us.ExecuteRequest(url, payload, nil); err != nil {
-		log.Error().Err(err).Str("user_id", userID).Msg("Failed to delete user.")
+		log.Error().Err(err).Str("user_id", userID).Msg("Failed to delete userService.")
 		return err
 	}
 
