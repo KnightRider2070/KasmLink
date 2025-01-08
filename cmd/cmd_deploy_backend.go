@@ -83,7 +83,8 @@ transfers them to the remote server, and runs 'docker compose up' to deploy serv
 			}
 
 			// Set server settings for workspace deployment
-			serverService := server.NewServerSettingsService(handler)
+			handler := http.NewRequestHandler(Config.BaseURL, Config.ApiSecret, Config.ApiSecretKey, Config.SkipTLS)
+			serverService := server.NewServerSettingsService(*handler)
 			serverService.UpdateAddWorkspaceToAllGroupsVar(false)
 
 			duration := time.Since(startTime)

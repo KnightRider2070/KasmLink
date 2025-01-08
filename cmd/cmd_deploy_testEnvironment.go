@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"kasmlink/pkg/api/http"
+
 	"strconv"
 	"time"
 
@@ -71,7 +73,8 @@ It builds or deploys Docker images, assigns resources, and updates configuration
 
 			// Execute the CreateTestEnvironment function.
 			ctx := context.Background()
-			err = internal.CreateTestEnvironment(ctx, deploymentConfigFilePath, dockerfilePath, buildContextDir, sshConfig)
+			handler := http.NewRequestHandler(Config.BaseURL, Config.ApiSecret, Config.ApiSecretKey, Config.SkipTLS)
+			err = internal.CreateTestEnvironment(ctx, deploymentConfigFilePath, dockerfilePath, buildContextDir, sshConfig, *handler)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to create test environment")
 				return
