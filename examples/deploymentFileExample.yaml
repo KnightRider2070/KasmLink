@@ -54,6 +54,8 @@ users:
       username: "user1"
       email: "user1@example.com"
       full_name: "User One"
+    groups:
+      - group_1
     workspace_id: workspace_1
     kasm_session_id: "session_1"
     environment:
@@ -66,7 +68,6 @@ users:
       username: "user2"
       email: "user2@example.com"
       full_name: "User Two"
-    workspace_id: workspace_1
     kasm_session_id: "session_2"
     environment:
       VAR1: "value3"
@@ -74,3 +75,9 @@ users:
     volume_mounts:
       /data: "/mnt/data"
       /config: "/mnt/config"
+
+groups:
+  group_1:
+    workspace_names:
+      - workspace_1
+      - workspace_2

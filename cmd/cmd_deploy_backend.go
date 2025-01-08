@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"kasmlink/pkg/api/http"
+	"kasmlink/pkg/api/server"
 	"strconv"
 	"time"
 
@@ -79,6 +81,10 @@ transfers them to the remote server, and runs 'docker compose up' to deploy serv
 				log.Error().Err(err).Msg("Failed to deploy backend services")
 				return
 			}
+
+			// Set server settings for workspace deployment
+			serverService := server.NewServerSettingsService(handler)
+			serverService.UpdateAddWorkspaceToAllGroupsVar(false)
 
 			duration := time.Since(startTime)
 			log.Info().

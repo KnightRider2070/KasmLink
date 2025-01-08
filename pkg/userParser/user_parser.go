@@ -19,12 +19,13 @@ type WorkspaceConfig struct {
 type DeploymentConfig struct {
 	Workspaces []WorkspaceConfig `yaml:"workspaces"` // Shared workspace configurations
 	Users      []UserDetails     `yaml:"users"`      // Users with references to workspaces
+	Groups     []models.Group    `yaml:"groups"`     // User groups
 }
 
 // UserDetails represents details for a specific userService in the configuration.
 type UserDetails struct {
 	TargetUser    models.TargetUser `yaml:"target_user"`     // Target userService details
-	WorkspaceID   string            `yaml:"workspace_id"`    // Reference to a shared workspace configuration
+	GroupName     string            `yaml:"group"`           // Group name
 	KasmSessionID string            `yaml:"kasm_session_id"` // Kasm session ID
 	Environment   map[string]string `yaml:"environment"`     // User-specific environment variables
 	VolumeMounts  map[string]string `yaml:"volume_mounts"`   // User-specific volume mounts
@@ -180,11 +181,8 @@ func (u *UserParser) ValidateDeploymentConfig(config *DeploymentConfig) error {
 		if user.TargetUser.Username == "" {
 			return errors.New("userService must have a username")
 		}
-		if user.WorkspaceID == "" {
-			return fmt.Errorf("userService %s must reference a workspace", user.TargetUser.Username)
-		}
-		if !workspaceIDs[user.WorkspaceID] {
-			return fmt.Errorf("userService %s references nonexistent workspace %s", user.TargetUser.Username, user.WorkspaceID)
+		if user.GroupName == "" {
+			return errors.New("userService must have a group name")
 		}
 	}
 	return nil

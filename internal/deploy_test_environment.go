@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"kasmlink/pkg/api/http"
+	"kasmlink/pkg/api/models"
 	"kasmlink/pkg/api/userService"
+	"kasmlink/pkg/api/workspace"
 	"kasmlink/pkg/dockercli"
 	"kasmlink/pkg/shadowssh"
 	"kasmlink/pkg/userParser"
@@ -55,46 +57,105 @@ func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, docker
 		workspaceMap[workspace.WorkspaceID] = workspace
 	}
 
-	// Step 2: Process each userService in the configuration
-	for _, user := range deploymentConfig.Users {
-		log.Info().
-			Str("username", user.TargetUser.Username).
-			Str("workspace_id", user.WorkspaceID).
-			Msg("Processing userService")
+	// Ensure Docker images exist and deploy them if missing
+	for _, workspace := range deploymentConfig.Workspaces {
+		imageTag := workspace.ImageConfig.DockerImageName
 
-		// Lookup the workspace configuration
-		workspaceConfig, ok := workspaceMap[user.WorkspaceID]
-		if !ok {
-			log.Error().Str("workspace_id", user.WorkspaceID).Msg("Workspace configuration not found")
-			return fmt.Errorf("workspace configuration not found for workspace ID: %s", user.WorkspaceID)
+		if err := ensureDockerImage(ctx, dockerClientLocal, dockerClientRemote, imageTag, dockerfilePath, buildContextDir, sshConfig); err != nil {
+			return fmt.Errorf("failed to ensure Docker image %s: %w", imageTag, err)
 		}
+	}
 
-		// Step 2.1: Check if the Docker image exists and deploy if missing
-		if err := ensureDockerImage(ctx, dockerClientLocal, dockerClientRemote, workspaceConfig.ImageConfig.DockerImageName, dockerfilePath, buildContextDir, sshConfig); err != nil {
-			return fmt.Errorf("failed to ensure Docker image for userService %s: %w", user.TargetUser.Username, err)
-		}
+	workspaceService := workspace.NewWorkspaceService(handler)
 
-		// Step 2.2: Create or get the userService via the API
-		service := userService.NewUserService(handler)
+	// Step 1.1: Create workspaces
+	for _, workspace := range deploymentConfig.Workspaces {
+		log.Info().Str("workspaceName", workspace.ImageConfig.FriendlyName).Msg("Creating workspace")
 
-		userID, err := CreateOrGetUser(ctx, service, user)
+		targetImageResponse, err := workspaceService.CreateWorkspace(workspace.ImageConfig)
 
 		if err != nil {
-			return fmt.Errorf("failed to create or get userService %s: %w", user.TargetUser.Username, err)
+			return fmt.Errorf("failed to create workspace %s: %w", workspace.ImageConfig.FriendlyName, err)
 		}
 
-		log.Info().Str("user_id", userID).Msg("User created or retrieved successfully")
+		log.Info().Str("workspace_id", targetImageResponse.ImageID).Msg("Workspace created successfully")
 
-		user.TargetUser.UserID = userID
+		// Update deployment configuration with new workspace details
+		workspace.ImageConfig = *targetImageResponse
+	}
 
-		//TODO: Step 2.3: Assign the users a workspace or start it and dont allow them to access other workspaces
+	// Create groups and add workspaces to them as needed
+	for _, group := range deploymentConfig.Groups {
+		log.Info().Str("groupName", group.Name).Msg("Creating group")
 
-		// Step 2.4: Update deployment configuration with new user details
-		if err := userParserInstance.UpdateUserDetails(deploymentConfigFilePath, user.TargetUser.Username, user.TargetUser.UserID, user.KasmSessionID); err != nil {
-			log.Error().Err(err).Str("username", user.TargetUser.Username).Msg("Failed to update userService configuration")
-			return fmt.Errorf("failed to update userService configuration for userService %s: %w", user.TargetUser.Username, err)
+		userService := userService.NewUserService(handler)
+
+		var groupToCreate = models.TargetGroup{
+			Name:        group.Name,
+			Priority:    group.Priority,
+			Description: *group.Description,
 		}
-		return nil
+
+		groupResponse, err := userService.CreateGroup(groupToCreate)
+
+		if err != nil {
+			return fmt.Errorf("failed to create group %s: %w", group.Name, err)
+		}
+
+		group = groupResponse.Groups[0]
+
+		log.Info().Str("group_id", group.GroupID).Msg("Group created successfully")
+
+		// Add workspaces to the group
+		for _, workspaceName := range group.WorkspaceNames {
+			// Lookup the workspaceID in the workspaceMap
+			workspaceConfig := workspaceMap[workspaceName]
+
+			workspaceID := workspaceConfig.WorkspaceID
+			// Add the workspace to the group
+			err := userService.AddImageToGroup(group.GroupID, workspaceID)
+			if err != nil {
+				return fmt.Errorf("failed to add workspace %s to group %s: %w", workspaceName, group.Name, err)
+			}
+			log.Info().Str("workspace_id", workspaceID).Str("group_id", group.GroupID).Msg("Workspace added to group successfully")
+		}
+	}
+
+	// Create users and add them to groups
+	for _, user := range deploymentConfig.Users {
+
+		log.Info().Str("username", user.TargetUser.Username).Msg("Creating user")
+
+		userService := userService.NewUserService(handler)
+
+		userResponse, err := userService.CreateUser(user.TargetUser)
+
+		if err != nil {
+			return fmt.Errorf("failed to create user %s: %w", user.TargetUser.Username, err)
+		}
+
+		user.TargetUser.UserID = userResponse.UserID
+
+		log.Info().Str("user_id", user.TargetUser.UserID).Msg("User created successfully")
+
+		// Get the group ID from the group name
+		var groupID string
+		for _, group := range deploymentConfig.Groups {
+			if group.Name == user.GroupName {
+				groupID = group.GroupID
+				break
+			}
+		}
+
+		// Add user to group
+		err = userService.AddUserToGroup(user.TargetUser.UserID, groupID)
+
+		if err != nil {
+			return fmt.Errorf("failed to add user %s to group %s: %w", user.TargetUser.Username, user.GroupName, err)
+		}
+
+		log.Info().Str("group_name", user.GroupName).Msg("User added to group successfully")
+
 	}
 
 	log.Info().Msg("Test environment creation completed successfully")
