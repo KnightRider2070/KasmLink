@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/rs/zerolog/log"
-	shadowscp "kasmlink/pkg/shadowscp"
+	"kasmlink/pkg/shadowscp"
 	sshmanager "kasmlink/pkg/shadowssh"
 
 	"os"

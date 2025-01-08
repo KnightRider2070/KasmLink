@@ -13,9 +13,7 @@ import (
 )
 
 const (
-	// URL regex pattern
-	URLRegexPattern = `https?://[^\s]+`
-	// Variable regex pattern
+	URLRegexPattern    = `https?://[^\s]+`
 	VariablePatternStr = `(?m)^\s*%s\s*=\s*['"]?([^'"\s]+)['"]?`
 )
 

@@ -51,7 +51,7 @@ func NewRequestHandler(baseURL, apiSecret, apiSecretKey string, skipTLS bool) *R
 }
 func (rh *RequestHandler) PostRequest(endpoint string, payload interface{}) ([]byte, error) {
 	// Validate endpoint
-	if url, err := url.Parse(endpoint); err == nil && url.IsAbs() {
+	if urlParse, err := url.Parse(endpoint); err == nil && urlParse.IsAbs() {
 		log.Error().Str("endpoint", endpoint).Msg("Endpoint must be a relative path, not a full URL.")
 		return nil, fmt.Errorf("invalid endpoint: must be a relative path")
 	}
@@ -80,7 +80,7 @@ func (rh *RequestHandler) PostRequest(endpoint string, payload interface{}) ([]b
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	log.Debug().Str("method", req.Method).Str("url", fullURL).Str("content_type", req.Header.Get("Content-Type")).Msg("HTTP request details")
+	log.Debug().Str("method", req.Method).Str("urlParse", fullURL).Str("content_type", req.Header.Get("Content-Type")).Msg("HTTP request details")
 
 	// Execute HTTP request
 	resp, err := rh.Client.Do(req)
@@ -100,10 +100,10 @@ func (rh *RequestHandler) PostRequest(endpoint string, payload interface{}) ([]b
 
 	// Handle non-OK status codes
 	if resp.StatusCode != http.StatusOK {
-		log.Warn().Str("url", fullURL).Int("status_code", resp.StatusCode).Msg("Non-OK response received.")
+		log.Warn().Str("urlParse", fullURL).Int("status_code", resp.StatusCode).Msg("Non-OK response received.")
 		return nil, fmt.Errorf("received non-OK status code: %d", resp.StatusCode)
 	}
 
-	log.Info().Str("url", fullURL).Msg("POST request successful.")
+	log.Info().Str("urlParse", fullURL).Msg("POST request successful.")
 	return responseBody, nil
 }

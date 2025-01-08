@@ -29,7 +29,7 @@ func validateBuildOptions(options BuildImageOptions) error {
 		return fmt.Errorf("context directory is required")
 	}
 	if options.DockerfilePath == "" {
-		return fmt.Errorf("Dockerfile path is required")
+		return fmt.Errorf("dockerfile path is required")
 	}
 	if options.ImageTag == "" {
 		return fmt.Errorf("image tag is required")

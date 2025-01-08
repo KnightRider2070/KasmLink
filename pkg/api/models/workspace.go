@@ -7,7 +7,7 @@ type JSONField struct {
 }
 
 // MarshalJSON ensures `JSONField` is serialized as a JSON string for requests.
-func (f JSONField) MarshalJSON() ([]byte, error) {
+func (f *JSONField) MarshalJSON() ([]byte, error) {
 	return json.Marshal(string(f.Raw))
 }
 
@@ -21,17 +21,17 @@ func (f *JSONField) UnmarshalJSON(data []byte) error {
 	}
 
 	// Otherwise, treat input as a JSON object
-	f.Raw = json.RawMessage(data)
+	f.Raw = data
 	return nil
 }
 
 // String returns the JSON as a string.
-func (f JSONField) String() string {
+func (f *JSONField) String() string {
 	return string(f.Raw)
 }
 
 // Object unmarshals the JSON into a provided object.
-func (f JSONField) Object(v interface{}) error {
+func (f *JSONField) Object(v interface{}) error {
 	return json.Unmarshal(f.Raw, v)
 }
 

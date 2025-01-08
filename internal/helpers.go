@@ -24,7 +24,7 @@ func CheckRemoteImages(ctx context.Context, client *shadowssh.Client, images []s
 	}
 
 	remoteImages := strings.Split(output, "\n")
-	missing := []string{}
+	var missing []string
 	imageSet := make(map[string]struct{})
 
 	for _, img := range remoteImages {
