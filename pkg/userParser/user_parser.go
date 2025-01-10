@@ -17,9 +17,9 @@ type WorkspaceConfig struct {
 
 // DeploymentConfig represents the full YAML structure with shared workspaces and userService details.
 type DeploymentConfig struct {
-	Workspaces []WorkspaceConfig `yaml:"workspaces"` // Shared workspace configurations
-	Users      []UserDetails     `yaml:"users"`      // Users with references to workspaces
-	Groups     []models.Group    `yaml:"groups"`     // User groups
+	Workspaces []WorkspaceConfig    `yaml:"workspaces"` // Shared workspace configurations
+	Users      []UserDetails        `yaml:"users"`      // Users with references to workspaces
+	Groups     []models.GroupStruct `yaml:"groups"`     // User groups
 }
 
 // UserDetails represents details for a specific userService in the configuration.

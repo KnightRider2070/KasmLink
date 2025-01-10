@@ -90,10 +90,10 @@ func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, docker
 
 		userService := userService.NewUserService(handler)
 
-		var groupToCreate = models.TargetGroup{
+		var groupToCreate = models.Group{
 			Name:        group.Name,
 			Priority:    group.Priority,
-			Description: *group.Description,
+			Description: group.Description,
 		}
 
 		groupResponse, err := userService.CreateGroup(groupToCreate)
@@ -102,7 +102,7 @@ func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, docker
 			return fmt.Errorf("failed to create group %s: %w", group.Name, err)
 		}
 
-		group = groupResponse.Groups[0]
+		group := groupResponse.Groups[0]
 
 		log.Info().Str("group_id", group.GroupID).Msg("Group created successfully")
 
