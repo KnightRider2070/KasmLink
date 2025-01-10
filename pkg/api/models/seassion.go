@@ -14,11 +14,11 @@ type RequestKasm struct {
 }
 
 type RequestKasmResponse struct {
+	RequestKasm
 	KasmID       string `json:"kasm_id"`
 	Username     string `json:"username"`
 	Status       string `json:"status"`
 	ShareID      string `json:"share_id"`
-	UserID       string `json:"user_id"`
 	SessionToken string `json:"session_token"`
 	KasmURL      string `json:"kasm_url"`
 }

@@ -80,7 +80,7 @@ func TestSaveConfig(t *testing.T) {
 					Username: "testuser",
 					UserID:   "12345",
 				},
-				WorkspaceID:  "workspace1",
+				GroupName:    "testgroup",
 				Environment:  map[string]string{"key": "value"},
 				VolumeMounts: map[string]string{"/data": "/mnt/data"},
 			},
@@ -146,7 +146,7 @@ func TestValidateConfig(t *testing.T) {
 					Username: "testuser",
 					UserID:   "12345",
 				},
-				WorkspaceID: "workspace1",
+				GroupName: "testgroup",
 			},
 		},
 	}
@@ -163,7 +163,7 @@ func TestValidateConfig(t *testing.T) {
 					Username: "",
 					UserID:   "",
 				},
-				WorkspaceID: "",
+				GroupName: "",
 			},
 		},
 	}

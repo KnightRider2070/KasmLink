@@ -1,30 +1,34 @@
 package models
 
-// Group represents an individual group
+// Metadata represents a key-value pair for group metadata.
+type Metadata struct {
+	Key   string `json:"key" validate:"required"`
+	Value string `json:"value"`
+}
+
+// Group represents the basic details of a group.
 type Group struct {
-	GroupID        string                 `json:"group_id"`
-	Name           string                 `json:"name"`
-	Description    *string                `json:"description"`
-	Priority       string                 `json:"priority"`
-	IsSystem       bool                   `json:"is_system"`
-	GroupMetadata  map[string]interface{} `json:"group_metadata"`
-	GroupMappings  []interface{}          `json:"group_mappings"`
-	WorkspaceNames []string               `json:"workspace_names"`
+	Name        string `json:"name" validate:"required"`
+	Priority    int    `json:"priority" validate:"oneof=high medium low"`
+	Description string `json:"description,omitempty"`
+}
+
+// GroupStruct represents a detailed group including additional attributes.
+type GroupStruct struct {
+	Group
+	GroupID        string     `json:"group_id" validate:"required"`
+	IsSystem       bool       `json:"is_system"`
+	GroupMetadata  []Metadata `json:"group_metadata,omitempty"`
+	GroupMappings  []string   `json:"group_mappings,omitempty"`
+	WorkspaceNames []string   `json:"workspace_names,omitempty"`
 }
 
 // GroupsResponse represents the response containing a list of groups.
 type GroupsResponse struct {
-	Groups []Group `json:"groups"`
-}
-
-// TargetGroup represents the group details in the request.
-type TargetGroup struct {
-	Name        string `json:"name"`
-	Priority    string `json:"priority"`
-	Description string `json:"description"`
+	Groups []GroupStruct `json:"groups"`
 }
 
 // GroupRequest represents the overall request structure.
 type GroupRequest struct {
-	TargetGroup TargetGroup `json:"target_group"`
+	TargetGroup Group `json:"target_group" validate:"required"`
 }
