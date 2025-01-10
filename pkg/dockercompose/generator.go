@@ -2,73 +2,82 @@ package dockercompose
 
 import (
 	"fmt"
-	"github.com/rs/zerolog/log"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 )
 
-// GenerateDockerComposeFile writes the Docker Compose file based on the provided ComposeFile struct.
-func GenerateDockerComposeFile(composeFile ComposeFile, outputPath string) error {
-	if outputPath == "" {
-		log.Error().Msg("Output path is empty. Please provide a valid path for the Docker Compose file.")
-		return fmt.Errorf("output path cannot be empty")
+// GenerateDockerComposeYAML generates a Docker Compose YAML file from the DockerCompose struct.
+func GenerateDockerComposeYAML(composeFile DockerCompose, outputPath string) error {
+	// Validate the input structure
+	if err := ValidateDockerCompose(composeFile); err != nil {
+		return fmt.Errorf("invalid DockerCompose structure: %w", err)
 	}
 
+	// Ensure the output directory is valid and writable
 	outputDir := filepath.Dir(outputPath)
-	log.Info().Str("outputPath", outputPath).Msg("Generating Docker Compose file")
-
-	// Ensure the output directory exists.
-	if err := os.MkdirAll(outputDir, os.ModePerm); err != nil {
-		log.Error().Err(err).Str("outputDir", outputDir).Msg("Failed to create output directory")
-		return fmt.Errorf("failed to create output directory %s: %w", outputDir, err)
+	if err := validateDirectory(outputDir); err != nil {
+		return fmt.Errorf("invalid output directory %s: %w", outputDir, err)
 	}
-	log.Debug().Str("outputDir", outputDir).Msg("Output directory verified/created successfully")
 
-	// Convert ComposeFile struct to YAML format
+	// Convert the DockerCompose struct to YAML
 	yamlData, err := yaml.Marshal(composeFile)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to marshal ComposeFile struct to YAML")
-		return fmt.Errorf("failed to marshal ComposeFile struct to YAML: %w", err)
+		return fmt.Errorf("failed to marshal DockerCompose to YAML: %w", err)
 	}
 
-	// Create a temporary file in the same directory for atomic write
-	tempFile, err := os.CreateTemp(outputDir, "docker-compose-*.yaml")
+	// Write the YAML data to the output file atomically
+	if err := atomicWriteFile(outputPath, string(yamlData)); err != nil {
+		return fmt.Errorf("failed to write Docker Compose YAML file: %w", err)
+	}
+
+	return nil
+}
+
+// validateDirectory checks if the directory exists and is writable.
+func validateDirectory(dir string) error {
+	// Check if the directory exists
+	info, err := os.Stat(dir)
 	if err != nil {
-		log.Error().Err(err).Str("outputDir", outputDir).Msg("Failed to create temporary file")
-		return fmt.Errorf("failed to create temporary file in %s: %w", outputDir, err)
-	}
-	defer func() {
-		if cerr := tempFile.Close(); cerr != nil {
-			err = fmt.Errorf("failed to close temp file: %v", cerr)
+		if os.IsNotExist(err) {
+			// Fail for non-existent directories on Windows and Linux
+			return fmt.Errorf("directory does not exist: %s", dir)
 		}
-		defer func() {
-			if err := os.Remove(tempFile.Name()); err != nil {
-				log.Error().Err(err).Msg("Failed to remove temporary file")
-			}
-		}()
-	}()
-	log.Debug().Str("tempFile", tempFile.Name()).Msg("Temporary file created for atomic write")
-
-	// Write the YAML data to the temporary file
-	if _, err := tempFile.Write(yamlData); err != nil {
-		log.Error().Err(err).Str("tempFile", tempFile.Name()).Msg("Failed to write to temporary file")
-		return fmt.Errorf("failed to write to temporary file %s: %w", tempFile.Name(), err)
-	}
-	log.Debug().Str("tempFile", tempFile.Name()).Msg("YAML data written to temporary file successfully")
-
-	// Close the temporary file before renaming
-	if err := tempFile.Close(); err != nil {
-		log.Error().Err(err).Str("tempFile", tempFile.Name()).Msg("Failed to close temporary file")
-		return fmt.Errorf("failed to close temporary file %s: %w", tempFile.Name(), err)
+		// Fail for other access issues
+		return fmt.Errorf("failed to access directory: %w", err)
 	}
 
-	// Rename the temporary file to the final output file (atomic operation).
-	if err := os.Rename(tempFile.Name(), outputPath); err != nil {
-		log.Error().Err(err).Str("tempFile", tempFile.Name()).Str("outputPath", outputPath).Msg("Failed to rename temporary file to final output file")
-		return fmt.Errorf("failed to rename temporary file %s to output file %s: %w", tempFile.Name(), outputPath, err)
+	// Ensure the path is a directory
+	if !info.IsDir() {
+		return fmt.Errorf("path is not a directory: %s", dir)
 	}
 
-	log.Info().Str("outputPath", outputPath).Msg("Docker Compose file generated successfully")
+	// Test if the directory is writable
+	testFilePath := filepath.Join(dir, "testfile.tmp")
+	testFile, err := os.Create(testFilePath)
+	if err != nil {
+		return fmt.Errorf("directory is not writable: %w", err)
+	}
+	testFile.Close()
+	os.Remove(testFilePath)
+
+	return nil
+}
+
+// atomicWriteFile writes content to a temporary file and then renames it to the target file.
+func atomicWriteFile(filePath, content string) error {
+	tmpFile := filePath + ".tmp"
+
+	// Write to the temporary file
+	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write temporary file %s: %w", tmpFile, err)
+	}
+
+	// Rename the temporary file to the target file
+	if err := os.Rename(tmpFile, filePath); err != nil {
+		return fmt.Errorf("failed to rename temporary file %s to %s: %w", tmpFile, filePath, err)
+	}
+
 	return nil
 }

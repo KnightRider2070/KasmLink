@@ -17,6 +17,12 @@ KasmLink is a powerful command-line interface (CLI) tool that enables developers
 
 - **Go**: Version 1.20 or later.
 - **Docker** and **Kasm**: You need a running Docker environment and a Kasm server to interact with.
+For using kubernetes
+- **kind**
+- **helm**
+- **kubectl**
+
+
 
 ## Installation
 

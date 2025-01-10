@@ -1,0 +1,83 @@
+workspaces:
+  - workspace_id: workspace_1
+    image_config:
+      image_id: "12345"
+      cores: 4
+      description: "Ubuntu 20.04 Base Image"
+      docker_registry: "docker.io"
+      docker_token: "example-docker-token"
+      docker_user: "docker-user"
+      enabled: true
+      friendly_name: "Ubuntu_Workspace"
+      hash: "abc123hash"
+      memory: 4096
+      docker_image_name: "ubuntu:20.04"
+      restrict_to_network: false
+      restrict_network_names: []
+      restrict_to_server: false
+      server_id: "server-1"
+      persistent_profile_path: "/path/to/profile"
+      categories: ["ubuntu", "linux"]
+      allow_network_selection: true
+      require_gpu: false
+      gpu_count: 0
+      hidden: false
+      notes: "This is a standard Ubuntu 20.04 image."
+      image_type: "docker"
+      cpu_allocation_method: "static"
+      uncompressed_size_mb: 2048
+      override_egress_gateways: false
+      exec_config: {}
+      launch_config: {}
+      volume_mappings: {}
+      run_config: {}
+      available: true
+      filter_policy_id: "policy_1"
+      image_src: "docker_image_source"
+      session_time_limit: "2h"
+      server_pool_id: "pool_1"
+      remote_app_args: "example_args"
+      remote_app_name: "example_app"
+      remote_app_program: "example_program"
+      remote_app_icon: "icon.png"
+      x_res: 1920
+      y_res: 1080
+      imageAttributes: ["high-performance", "stable"]
+      persistent_profile_config: {}
+      zone_id: "zone_1"
+      zone_name: "us-east-1"
+      filter_policy_name: "default"
+      filter_policy_force_disabled: false
+
+users:
+  - target_user:
+      username: "user1"
+      email: "user1@example.com"
+      full_name: "User One"
+    groups:
+      - group_1
+    workspace_id: workspace_1
+    kasm_session_id: "session_1"
+    environment:
+      VAR1: "value1"
+      VAR2: "value2"
+    volume_mounts:
+      /data: "/mnt/data"
+      /config: "/mnt/config"
+  - target_user:
+      username: "user2"
+      email: "user2@example.com"
+      full_name: "User Two"
+    kasm_session_id: "session_2"
+    environment:
+      VAR1: "value3"
+      VAR2: "value4"
+    volume_mounts:
+      /data: "/mnt/data"
+      /config: "/mnt/config"
+
+groups:
+  group_1:
+    workspace_names:
+      - workspace_1
+      - workspace_2

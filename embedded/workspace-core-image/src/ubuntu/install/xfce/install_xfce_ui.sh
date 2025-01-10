@@ -22,7 +22,7 @@ notify-send "Logout" "Please logout or destroy this desktop using the Kasm Contr
 EOL
 
 # Add a script for launching Thunar with libnss wrapper.
-# This is called by ~.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml
+# This is called by ~.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-sessions.xml
 cat >/usr/bin/execThunar.sh <<EOL
 #!/bin/sh
 . $STARTUPDIR/generate_container_user
@@ -39,7 +39,7 @@ until pids=\$(pidof \${START_DE}); do sleep .5; done
 EOL
 chmod +x /usr/bin/desktop_ready
 
-# Change the default behavior of the delete key which is to move to trash. This will now prompt the user to permanently
+# Change the default behavior of the delete key which is to move to trash. This will now prompt the userService to permanently
 # delete the file instead of moving it to trash
 mkdir -p /etc/xdg/Thunar/
 cat >>/etc/xdg/Thunar/accels.scm<<EOL

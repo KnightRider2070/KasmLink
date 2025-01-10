@@ -14,7 +14,6 @@ import (
 var Version = "dev"
 var noColor = false
 
-// LoadLogo loads the ASCII logo from a file.
 func LoadLogo(filename string) (string, error) {
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -48,13 +47,10 @@ func main() {
 		zerologLevel = zerolog.InfoLevel
 	}
 
-	// Set color preference based on the DEBUG environment variable
-	//For windows use $env:LOGLEVEL="debug"
 	if os.Getenv("DEBUG") != "" {
 		noColor = true
 	}
 
-	// Configure zerolog with the specified settings
 	zerolog.SetGlobalLevel(zerologLevel)
 	log.Logger = log.Output(zerolog.ConsoleWriter{
 		Out:        os.Stdout,
@@ -62,7 +58,6 @@ func main() {
 		NoColor:    noColor,
 	})
 
-	// Load and print the ASCII logo
 	logo, err := LoadLogo("kasmlink.txt")
 	if err != nil {
 		log.Error().Msgf("Error loading logo: %v", err)
@@ -71,6 +66,5 @@ func main() {
 	}
 	fmt.Printf("---\nKasm Link CLI Version: %s\n---\n", Version)
 
-	// Execute the main CLI command
 	cmd.Execute()
 }

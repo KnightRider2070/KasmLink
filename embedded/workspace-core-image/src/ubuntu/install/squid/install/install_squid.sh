@@ -18,7 +18,7 @@ fi
 SQUID_COMMIT='1149fc830c7edcb383eec390cce2beba16befde5'
 wget -qO- https://kasmweb-build-artifacts.s3.amazonaws.com/kasm-squid-builder/${SQUID_COMMIT}/output/kasm-squid-builder_${ARCH}.tar.gz | tar -xzf - -C /
 
-# update squid conf with user info
+# update squid conf with userService info
   useradd --system --shell /usr/sbin/nologin --home-dir /bin proxy
   groupadd -g 65511 proxy
   usermod -a -G proxy proxy

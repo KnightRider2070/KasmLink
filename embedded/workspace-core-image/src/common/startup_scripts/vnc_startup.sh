@@ -87,9 +87,9 @@ function pull_profile (){
 		log "Downloading and unpacking user profile from object storage."
 		set +e
 		if [[ $DEBUG == true ]]; then
-			OUTPUT=$(http_proxy="" https_proxy="" /usr/bin/kasm-profile-sync --download /home/kasm-user --insecure --remote ${KASM_API_HOST} --port ${KASM_API_PORT} -c ${KASM_PROFILE_CHUNK_SIZE} --token ${KASM_API_JWT} --verbose 2>&1 )
+			OUTPUT=$(http_proxy="" https_proxy="" /usr/bin/kasm-profile-sync --download /home/kasm-userService --insecure --remote ${KASM_API_HOST} --port ${KASM_API_PORT} -c ${KASM_PROFILE_CHUNK_SIZE} --token ${KASM_API_JWT} --verbose 2>&1 )
 		else
-			OUTPUT=$(http_proxy="" https_proxy="" /usr/bin/kasm-profile-sync --download /home/kasm-user --insecure --remote ${KASM_API_HOST} --port ${KASM_API_PORT} -c ${KASM_PROFILE_CHUNK_SIZE} --token ${KASM_API_JWT} 2>&1 )
+			OUTPUT=$(http_proxy="" https_proxy="" /usr/bin/kasm-profile-sync --download /home/kasm-userService --insecure --remote ${KASM_API_HOST} --port ${KASM_API_PORT} -c ${KASM_PROFILE_CHUNK_SIZE} --token ${KASM_API_JWT} 2>&1 )
 		fi
 
 		# log output of profile sync
@@ -109,7 +109,7 @@ function pull_profile (){
 		sleep 3
 		http_proxy="" https_proxy="" curl -k "https://${KASM_API_HOST}:${KASM_API_PORT}/api/set_kasm_session_status?token=${KASM_API_JWT}" -H 'Content-Type: application/json' -d '{"status": "running"}'
 
-		# Reset the timer to prevent session recording monitor from exiting
+		# Reset the timer to prevent sessions recording monitor from exiting
 		SECONDS=0
 	fi
 }
@@ -208,7 +208,7 @@ function start_window_manager (){
 	fi
         echo -e "\n------------------ Openbox window manager startup------------------"
         if [ "${START_DE}" == "openbox" ] ; then
-		/usr/bin/openbox-session &
+		/usr/bin/openbox-sessions &
                 KASM_PROCS['window_manager']=$!
         else
                 echo "Skipping OpenBox Startup"
@@ -400,7 +400,7 @@ function ensure_recorder_running () {
             exit 0
         fi
 
-        recorder_user=$(ps -p $recorder_pid -o user=)
+        recorder_user=$(ps -p $recorder_pid -o userService=)
         if [[ $recorder_user != "kasm-recorder" ]]; then
             log "$kasm_recorder_process: not running as kasm-recorder, exiting" "ERROR"
             exit 0
@@ -488,7 +488,7 @@ fi
 # have a custom network interface setup that might not be ready
 wait_for_network_devices
 
-# Syncronize user-space loaded persistent profiles
+# Syncronize userService-space loaded persistent profiles
 pull_profile
 
 # should also source $STARTUPDIR/generate_container_user
