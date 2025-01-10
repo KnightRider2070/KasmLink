@@ -215,7 +215,7 @@ func (us *UserService) AddUserToGroup(userID, groupID string) error {
 }
 
 // CreateGroup sends a request to create a new group.
-func (us *UserService) CreateGroup(group models.TargetGroup) (*models.GroupsResponse, error) {
+func (us *UserService) CreateGroup(group models.Group) (*models.GroupsResponse, error) {
 	url := fmt.Sprintf("%s%s", us.BaseURL, CreateGroupEndpoint)
 	log.Info().
 		Str("url", url).
