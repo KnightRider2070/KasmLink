@@ -1,0 +1,71 @@
+#######################################
+#          General Configuration      #
+#######################################
+
+CLUSTER_NAME: k8s-cluster
+# Name of the Kubernetes cluster. Change to match your environment.
+
+TALOS_VERSION: v1.9.1
+# Version of Talos OS to be used. Ensure compatibility with Kubernetes.
+
+KUBERNETES_VERSION: v1.32.0
+# Kubernetes version for the cluster. Match with the Talos version.
+
+
+#######################################
+#        Virtual IP Configuration     #
+#######################################
+
+VIP: 192.168.10.1
+# Virtual IP Address for the control plane.
+# Ensure this IP is outside the range of all master/worker node IPs.
+
+
+#######################################
+#   Control Plane Scheduling Option   #
+#######################################
+
+ALLOW_SCHEDULING_ON_CONTROLS: true
+# Allow scheduling workloads on control plane nodes.
+# Recommended for small clusters; set to 'false' for production.
+
+
+#######################################
+#    Master Node 1 Configuration      #
+#######################################
+
+MASTER1_HOSTNAME: k8s-control-1
+# Hostname for the first control plane node. Follow consistent naming conventions.
+
+MASTER1_IP: 192.168.10.10
+# IP Address for the first control plane node.
+
+MASTER1_CIDR: 192.168.10.10/24
+# CIDR for the first control plane node (e.g., 192.168.10.10/24). Ensure this is correctly filled.
+
+GATEWAY: 192.168.178.1
+# Gateway address for the network. Ensure it matches your network configuration.
+
+
+#######################################
+#     Kubernetes Network Settings     #
+#######################################
+
+PODNET: 172.16.0.0/16
+# IP range for Kubernetes pods. Used by the cluster for pod communication.
+
+SVCNET: 172.17.0.0/16
+# IP range for Kubernetes services. Ensure it does not overlap with existing subnets.
+
+
+#######################################
+#                Notes                #
+#######################################
+
+# - Ensure that the `VIP` is unique and does not conflict with any master or worker node IPs.
+# - The `GATEWAY` field should point to your network's default gateway.
+# - Update `MASTER1_CIDR` to include the correct subnet mask for the control plane node.
+# - For large clusters, set `ALLOW_SCHEDULING_ON_CONTROLS` to `false` to keep control plane nodes dedicated.
+# - Avoid altering `PODNET` and `SVCNET` unless you know the impact on the cluster.
+
+DASHBOARD_IP: 192.168.14

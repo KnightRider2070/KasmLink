@@ -16,3 +16,6 @@ var EmbeddedTemplateFS embed.FS
 
 //go:embed compose-spec.json
 var ComposeSpec []byte
+
+//go:embed cluster/*
+var ClusterDirectory embed.FS

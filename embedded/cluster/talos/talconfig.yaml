@@ -1,0 +1,161 @@
+clusterName: ${CLUSTER_NAME}
+# The name of your Kubernetes cluster. Ensure it is unique in your environment.
+
+# renovate: datasource=docker depName=ghcr.io/siderolabs/installer
+talosVersion: ${TALOS_VERSION:-v1.9.1}
+# The version of Talos OS to be used. Match this with your Kubernetes version.
+
+# renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
+kubernetesVersion: ${KUBERNETES_VERSION:-v1.32.0}
+# The version of Kubernetes to be deployed. Ensure compatibility with Talos OS.
+
+endpoint: https://${VIP}:6443
+# The API server endpoint, using the Virtual IP (VIP) for high availability.
+
+allowSchedulingOnControlPlanes: ${ALLOW_SCHEDULING_ON_CONTROLS:-true}
+# Allow workloads to be scheduled on control plane nodes.
+# Set to 'false' in production to keep control plane nodes dedicated.
+
+additionalMachineCertSans:
+  - 127.0.0.1
+  - ${VIP}
+# Additional SANs (Subject Alternative Names) for the machine certificates.
+
+additionalApiServerCertSans:
+  - 127.0.0.1
+  - ${VIP}
+# Additional SANs for the Kubernetes API server certificates.
+
+clusterPodNets:
+  - ${POD_NET:-10.244.0.0/16}
+# The CIDR range for Kubernetes pods.
+
+clusterSvcNets:
+  - ${SVC_NET:-10.96.0.0/12}
+# The CIDR range for Kubernetes services.
+
+cniConfig:
+  name: none
+# The CNI (Container Network Interface) configuration. "none" means you will set up CNI separately.
+
+patches:
+  - "@./patches/common.yaml"
+# Apply common configuration patches from an external file.
+
+nodes:
+  - hostname: ${MASTER1_HOSTNAME:-k8s-control-1}
+    # Hostname for the first control plane node.
+    ipAddress: ${MASTER1_IP}
+    # The IP address assigned to the first control plane node.
+    controlPlane: true
+    # Indicates this is a control plane node.
+    nameservers:
+      - 1.1.1.1
+      - 8.8.8.8
+    # DNS servers for the node's network configuration.
+    installDiskSelector:
+      size: <= 1600GB
+    # Disk size selector for installation. Adjust based on your hardware.
+    networkInterfaces:
+      - interface: eth0
+        addresses:
+          - ${MASTER1_CIDR}
+        # Network interface CIDR configuration for the node.
+        routes:
+          - network: 0.0.0.0/0
+            gateway: ${GATEWAY}
+        # The default route (gateway) for outgoing traffic.
+        vip:
+          ip: ${VIP}
+        # Virtual IP (VIP) configuration for high availability.
+
+controlPlane:
+  patches:
+    - "@./patches/controlplane.yaml"
+  # Apply specific configuration patches for control plane nodes.
+  kernelModules:
+    - name: nvme_tcp
+    - name: vfio_pci
+    - name: uio_pci_generic
+  # Kernel modules to be loaded on the control plane node.
+  schematic:
+    customization:
+      extraKernelArgs:
+        - net.ifnames=0
+      # Disable predictable network interface names for simpler management.
+      systemExtensions:
+        officialExtensions:
+          - siderolabs/util-linux-tools
+          - siderolabs/iscsi-tools
+          - siderolabs/qemu-guest-agent
+      # Additional system utilities and tools to extend functionality.
+  machineFiles:
+    - content: |
+        [plugins."io.containerd.grpc.v1.cri"]
+          enable_unprivileged_ports = true
+          enable_unprivileged_icmp = true
+        [plugins."io.containerd.grpc.v1.cri".containerd]
+          discard_unpacked_layers = false
+        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+          discard_unpacked_layers = false
+      permissions: 0
+      path: /etc/cri/conf.d/20-customization.part
+      op: create
+    # Custom configuration for containerd to optimize container runtime behavior.
+    - content: |
+        [ NFSMount_Global_Options ]
+        nfsvers=4.2
+        hard=True
+        noatime=True
+        nodiratime=True
+        rsize=131072
+        wsize=131072
+        nconnect=8
+      permissions: 420
+      path: /etc/nfsmount.conf
+      op: overwrite
+    # Custom NFS mount options for improved performance.
+
+worker:
+  patches:
+    - "@./patches/worker.yaml"
+  # Apply specific configuration patches for worker nodes.
+  kernelModules:
+    - name: nvme_tcp
+    - name: vfio_pci
+    - name: uio_pci_generic
+  # Kernel modules to be loaded on worker nodes.
+  schematic:
+    customization:
+      systemExtensions:
+        officialExtensions:
+          - siderolabs/util-linux-tools
+          - siderolabs/iscsi-tools
+          - siderolabs/qemu-guest-agent
+      # Additional system utilities and tools to extend functionality.
+  machineFiles:
+    - content: |
+        [plugins."io.containerd.grpc.v1.cri"]
+          enable_unprivileged_ports = true
+          enable_unprivileged_icmp = true
+        [plugins."io.containerd.grpc.v1.cri".containerd]
+          discard_unpacked_layers = false
+        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+          discard_unpacked_layers = false
+      permissions: 0
+      path: /etc/cri/conf.d/20-customization.part
+      op: create
+    # Custom configuration for containerd to optimize container runtime behavior.
+    - content: |
+        [ NFSMount_Global_Options ]
+        nfsvers=4.2
+        hard=True
+        noatime=True
+        nodiratime=True
+        rsize=131072
+        wsize=131072
+        nconnect=8
+      permissions: 420
+      path: /etc/nfsmount.conf
+      op: overwrite
+    # Custom NFS mount options for improved performance.

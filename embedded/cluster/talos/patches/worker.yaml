@@ -1,0 +1,7 @@
+# Machine Time Configuration - Enabling Time Synchronization and Setting NTP Servers
+- op: replace
+  path: /machine/time
+  value:
+    disabled: false  # Enables time synchronization on the machine
+    servers:
+      - "time.cloudflare.com"  # Specifies the NTP server for time synchronization

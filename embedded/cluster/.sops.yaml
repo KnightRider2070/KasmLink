@@ -1,0 +1,13 @@
+# DO NOT ALTER THE FILE
+creation_rules:
+  - path_regex: ^clusters.*kubernetes.*values.ya?ml$
+    age: AGE_PUBLIC_KEY
+    encrypted_regex: "((?i)(displayname|email|pass|ca|id|bootstraptoken|secretboxencryptionsecret|secrets|secrets|password|cert|secret($|[^N])|key|token|^data$|^stringData))"
+  - path_regex: ^clusters.*kubernetes.*\.secret.ya?ml
+    age: AGE_PUBLIC_KEY
+    encrypted_regex: "((?i)(displayname|email|pass|ca|id|bootstraptoken|secretboxencryptionsecret|secrets|secrets|password|cert|secret($|[^N])|key|token|^data$|^stringData))"
+  - path_regex: clusterenv.yaml
+    age: AGE_PUBLIC_KEY
+  - path_regex: talsecret.yaml
+    age: AGE_PUBLIC_KEY
+# BELOW HERE CUSTOM RULES CAN BE ADDED
