@@ -3,9 +3,9 @@
 set -e
 
 
-    zypper ar -cfp 90 'https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Leap_$releasever/' packman
-    zypper -n --gpg-auto-import-keys dup --from packman --allow-vendor-change
-    zypper install -ny xhost
+zypper ar -cfp 90 'https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Leap_$releasever/' packman
+zypper -n --gpg-auto-import-keys dup --from packman --allow-vendor-change
+zypper install -ny xhost
 
 
 COMMIT_ID="bf2696c063b307591483a21693542dd360a3baa6"

@@ -5,8 +5,8 @@ set -ex
 ARCH=$(arch | sed 's/aarch64/arm64/g' | sed 's/x86_64/amd64/g')
 echo "Install Audio Requirements"
 
-  zypper install -ny curl git
-  zypper install -yn ffmpeg pulseaudio-utils
+zypper install -ny curl git
+zypper install -yn ffmpeg pulseaudio-utils
 
 
 mkdir -p /var/run/pulse

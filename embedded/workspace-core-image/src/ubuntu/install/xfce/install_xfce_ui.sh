@@ -4,16 +4,16 @@ set -e
 
 echo "Install Xfce4 UI components"
 
-  zypper install -yn -t pattern xfce
-  zypper install -yn \
-    gvfs \
-    xclip \
-    xfce4-terminal \
-    xfce4-notifyd \
-	  kdialog \
-    xset
-  # Pidof is no longer shipped in OpenSuse
-  ln -s /usr/bin/pgrep /usr/bin/pidof
+zypper install -yn -t pattern xfce
+zypper install -yn \
+  gvfs \
+  xclip \
+  xfce4-terminal \
+  xfce4-notifyd \
+  kdialog \
+  xset
+# Pidof is no longer shipped in OpenSuse
+ln -s /usr/bin/pgrep /usr/bin/pidof
 
 # Override default login script so users cant log themselves out of the desktop dession
 cat >/usr/bin/xfce4-session-logout <<EOL

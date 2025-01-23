@@ -1,19 +1,24 @@
 #!/usr/bin/env bash
 set -ex
 
-# Setup systemd based on distro type
-  # Install deps
-  zypper install -y \
-    dbus-1 \
-    iproute2 \
-    iptables \
-    kmod \
-    sudo \
-    systemd \
-    systemd-sysvinit \
-    udev
+# Refresh zypper repositories to avoid metadata expiration errors
+zypper ref || {
+  echo "Error: Failed to refresh zypper repositories."
+  exit 1
+}
 
-# Disable systemd stuff that does not work
+# Install dependencies
+zypper install -y \
+  dbus-1 \
+  iproute2 \
+  iptables \
+  kmod \
+  sudo \
+  systemd \
+  systemd-sysvinit \
+  udev
+
+# Disable unnecessary or problematic systemd services
 echo "ReadKMsg=no" >> /etc/systemd/journald.conf
 systemctl mask \
   systemd-udevd.service \
@@ -24,11 +29,16 @@ systemctl mask \
   systemd-udev-trigger.service \
   sys-kernel-config.mount \
   sys-kernel-debug.mount \
-  sys-kernel-tracing.mount
+  sys-kernel-tracing.mount || {
+    echo "Error: Failed to mask systemd services."
+    exit 1
+}
+
+# Remove unnecessary DBus services
 rm -f /usr/share/dbus-1/system-services/org.freedesktop.UPower.service
 
-# Generate our standard init systemd service and init helper
-cat >/etc/systemd/system/kasm.service<<EOL
+# Create systemd services for Kasm
+cat >/etc/systemd/system/kasm.service <<EOL
 [Unit]
 Description=Kasm Workspaces Init
 After=kasm-setup.service
@@ -43,7 +53,8 @@ ExecStart=/bin/bash /dockerstartup/kasm_default_profile.sh /dockerstartup/vnc_st
 [Install]
 WantedBy=multi-user.target
 EOL
-cat >/etc/systemd/system/kasm-setup.service<<EOL
+
+cat >/etc/systemd/system/kasm-setup.service <<EOL
 [Unit]
 Description=Kasm Workspaces root level setup
 Before=kasm.service
@@ -56,7 +67,9 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target
 EOL
-cat >/kasm-sysbox-setup.sh<<EOL
+
+# Create Kasm setup script
+cat >/kasm-sysbox-setup.sh <<EOL
 #!/bin/bash
 mkdir -p /var/run/pulse
 chown kasm-user:kasm-user /var/run/pulse
@@ -77,6 +90,8 @@ systemctl stop unattended-upgrades
 systemctl stop upower
 systemctl stop wpa_supplicant
 EOL
+
+# Set permissions and enable services
 chmod +x /kasm-sysbox-setup.sh
 chmod 644 /etc/systemd/system/kasm.service /etc/systemd/system/kasm-setup.service
 systemctl enable kasm kasm-setup

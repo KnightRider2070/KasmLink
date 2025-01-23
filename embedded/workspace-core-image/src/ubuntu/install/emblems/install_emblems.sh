@@ -10,22 +10,36 @@ https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29
 https://upload.wikimedia.org/wikipedia/commons/7/78/Dropbox_Icon.svg|dropbox
 https://kasm-ci.s3.amazonaws.com/kasm.svg|kasm'
 
-# Download icons and add to cache
-mkdir -p /usr/share/icons/hicolor/scalable/emblems
+# Create the emblems directory
+EMBLEM_DIR="/usr/share/icons/hicolor/scalable/emblems"
+mkdir -p "$EMBLEM_DIR"
+
+# Download icons and create corresponding .icon files
 for icon in $icons; do
   URL=$(echo "${icon}" | awk -F'|' '{print $1}')
   NAME=$(echo "${icon}" | awk -F'|' '{print $2}')
-  curl -o /usr/share/icons/hicolor/scalable/emblems/${NAME}-emblem.svg -L "${URL}"
-  echo "[Icon Data]" >> /usr/share/icons/hicolor/scalable/emblems/${NAME}-emblem.icon
-  echo "DisplayName=${NAME}-emblem" >> /usr/share/icons/hicolor/scalable/emblems/${NAME}-emblem.icon
+
+  echo "Downloading icon: $NAME from $URL"
+  curl -o "${EMBLEM_DIR}/${NAME}-emblem.svg" -L "${URL}"
+
+  echo "Creating .icon file for $NAME"
+  cat >"${EMBLEM_DIR}/${NAME}-emblem.icon" <<EOL
+[Icon Data]
+DisplayName=${NAME}-emblem
+EOL
 done
+
+# Update the icon cache
 gtk-update-icon-cache -f /usr/share/icons/hicolor
 
-# Support dynamic icons on init
-cat >>/etc/xdg/autostart/emblems.desktop<<EOL
+# Add dynamic icons on startup
+cat >>/etc/xdg/autostart/emblems.desktop <<EOL
 [Desktop Entry]
 Type=Application
 Name=Folder Emblems
 Exec=/dockerstartup/emblems.sh
 EOL
+
 chmod +x /etc/xdg/autostart/emblems.desktop
+
+echo "Emblems installed successfully."

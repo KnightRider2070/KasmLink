@@ -28,3 +28,7 @@ go.work.sum
 #Image Exports
 kasm-suse-vscode.tar
 
+/merged
+/merger.py
+/tests/SystemTests/registry_latest.tar
+/windows_test_output.txt

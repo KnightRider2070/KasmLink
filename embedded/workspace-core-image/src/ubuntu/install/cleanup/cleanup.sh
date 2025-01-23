@@ -3,7 +3,7 @@ set -ex
 
 # Distro package cleanup
 
-  zypper clean --all
+zypper clean --all
 
 
 # File cleanups

@@ -22,16 +22,16 @@ else
 fi
 
 
-    mkdir -p /etc/pki/tls/private
-    wget "${BUILD_URL}" -O kasmvncserver.rpm
-    zypper install -y \
-        libdrm_amdgpu1 \
-	libdrm_radeon1
-    if [ "${BUILD_ARCH}" == "x86_64" ]; then
-        zypper install -y libdrm_intel1
-    fi
-    zypper install -y --allow-unsigned-rpm ./kasmvncserver.rpm
-    rm kasmvncserver.rpm
+mkdir -p /etc/pki/tls/private
+wget "${BUILD_URL}" -O kasmvncserver.rpm
+zypper install -y \
+    libdrm_amdgpu1 \
+    libdrm_radeon1
+if [ "${BUILD_ARCH}" == "x86_64" ]; then
+    zypper install -y libdrm_intel1
+fi
+zypper install -y --allow-unsigned-rpm ./kasmvncserver.rpm
+rm kasmvncserver.rpm
 
 mkdir -p $KASM_VNC_PATH/www/Downloads
 chown -R 0:0 $KASM_VNC_PATH
