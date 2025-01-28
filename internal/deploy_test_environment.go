@@ -14,9 +14,9 @@ import (
 )
 
 // CreateTestEnvironment creates a test environment based on the deployment configuration file.
-func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, dockerfilePath, buildContextDir string, sshConfig *shadowssh.Config, handler http.RequestHandler) error {
+func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, buildContextDir string, sshConfig *shadowssh.Config, handler http.RequestHandler) error {
 	// Validate required file paths
-	if deploymentConfigFilePath == "" || dockerfilePath == "" || buildContextDir == "" {
+	if deploymentConfigFilePath == "" || buildContextDir == "" {
 		return fmt.Errorf("deployment configuration file, Dockerfile path, and build context directory must be specified")
 	}
 
@@ -48,6 +48,7 @@ func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, docker
 		log.Error().Err(err).Str("config_file", deploymentConfigFilePath).Msg("Failed to load deployment configuration")
 		return fmt.Errorf("failed to load deployment configuration: %w", err)
 	}
+
 	log.Info().Int("workspace_count", len(deploymentConfig.Workspaces)).
 		Int("user_count", len(deploymentConfig.Users)).Msg("Successfully loaded deployment configuration")
 
@@ -60,8 +61,10 @@ func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, docker
 	// Ensure Docker images exist and deploy them if missing
 	for _, workspace := range deploymentConfig.Workspaces {
 		imageTag := workspace.ImageConfig.DockerImageName
+		dockerfilePath := workspace.DockerFilePath
+		targetStage := workspace.TargetStage
 
-		if err := ensureDockerImage(ctx, dockerClientLocal, dockerClientRemote, imageTag, dockerfilePath, buildContextDir, sshConfig); err != nil {
+		if err := ensureDockerImage(ctx, dockerClientLocal, dockerClientRemote, imageTag, dockerfilePath, targetStage, buildContextDir, sshConfig); err != nil {
 			return fmt.Errorf("failed to ensure Docker image %s: %w", imageTag, err)
 		}
 	}
@@ -163,7 +166,7 @@ func CreateTestEnvironment(ctx context.Context, deploymentConfigFilePath, docker
 }
 
 // ensureDockerImage checks if a Docker image exists and deploys it if missing.
-func ensureDockerImage(ctx context.Context, dockerClientLocal, dockerClientRemote *dockercli.DockerClient, imageTag, dockerfilePath, buildContextDir string, sshConfig *shadowssh.Config) error {
+func ensureDockerImage(ctx context.Context, dockerClientLocal, dockerClientRemote *dockercli.DockerClient, imageTag, dockerfilePath, targetStage, buildContextDir string, sshConfig *shadowssh.Config) error {
 	log.Info().Str("image_tag", imageTag).Msg("Retrieving Docker images on remote node")
 	images, err := dockerClientRemote.ListImages(ctx, dockercli.ListImagesOptions{})
 	if err != nil {
@@ -206,6 +209,7 @@ func ensureDockerImage(ctx context.Context, dockerClientLocal, dockerClientRemot
 	options := dockercli.BuildImageOptions{
 		ContextDir:     buildContextDir,
 		DockerfilePath: dockerfilePath,
+		TargetStage:    targetStage,
 		ImageTag:       imageTag,
 		SSH:            sshConfig,
 	}

@@ -32,14 +32,13 @@ func init() {
 // createCreateTestEnvironmentCommand creates a command for creating a test environment.
 func createCreateTestEnvironmentCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "create [deploymentConfigFilePath] [dockerfilePath] [buildContextDir] [sshHost] [sshPort] [sshUser] [sshPassword]",
+		Use:   "create [deploymentConfigFilePath] [buildContextDir] [sshHost] [sshPort] [sshUser] [sshPassword]",
 		Short: "Create a test environment based on a deployment configuration",
 		Long: `This command sets up a test environment using the provided deployment configuration file. 
 It builds or deploys Docker images, assigns resources, and updates configurations as specified.`,
 		Args: cobra.ExactArgs(7),
 		Run: func(cmd *cobra.Command, args []string) {
 			deploymentConfigFilePath := args[0]
-			dockerfilePath := args[1]
 			buildContextDir := args[2]
 			sshHost := args[3]
 			sshPort := args[4]
@@ -48,7 +47,6 @@ It builds or deploys Docker images, assigns resources, and updates configuration
 
 			log.Info().
 				Str("config_file", deploymentConfigFilePath).
-				Str("dockerfile_path", dockerfilePath).
 				Str("context_dir", buildContextDir).
 				Str("host", sshHost).
 				Msg("Starting test environment creation")
@@ -74,7 +72,7 @@ It builds or deploys Docker images, assigns resources, and updates configuration
 			// Execute the CreateTestEnvironment function.
 			ctx := context.Background()
 			handler := http.NewRequestHandler(Config.BaseURL, Config.ApiSecret, Config.ApiSecretKey, Config.SkipTLS)
-			err = internal.CreateTestEnvironment(ctx, deploymentConfigFilePath, dockerfilePath, buildContextDir, sshConfig, *handler)
+			err = internal.CreateTestEnvironment(ctx, deploymentConfigFilePath, buildContextDir, sshConfig, *handler)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to create test environment")
 				return

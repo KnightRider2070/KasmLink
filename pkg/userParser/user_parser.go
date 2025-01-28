@@ -11,8 +11,10 @@ import (
 )
 
 type WorkspaceConfig struct {
-	WorkspaceID string             `yaml:"workspace_id"` // Unique identifier for the workspace
-	ImageConfig models.TargetImage `yaml:"image_config"` // Target image configuration
+	WorkspaceID    string             `yaml:"workspace_id"`    // Unique identifier for the workspace
+	ImageConfig    models.TargetImage `yaml:"image_config"`    // Target image configuration
+	DockerFilePath string             `yaml:"dockerfile_path"` // Path to the Dockerfile defining the workspace
+	TargetStage    string             `yaml:"target_stage"`    // Target stage for the Docker build if multi-stage
 }
 
 // DeploymentConfig represents the full YAML structure with shared workspaces and userService details.

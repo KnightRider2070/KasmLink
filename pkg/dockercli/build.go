@@ -19,6 +19,7 @@ type BuildImageOptions struct {
 	ContextDir     string
 	DockerfilePath string
 	ImageTag       string
+	TargetStage    string
 	BuildArgs      map[string]string
 	SSH            *shadowssh.Config
 }
@@ -46,6 +47,7 @@ func validateBuildOptions(options BuildImageOptions) error {
 func buildImageLocally(ctx context.Context, client *DockerClient, tarballPath string, options BuildImageOptions) error {
 	buildCmd := []string{
 		"docker", "build",
+		"--target", options.TargetStage,
 		"-t", options.ImageTag,
 		"-f", options.DockerfilePath,
 		options.ContextDir,
@@ -90,8 +92,8 @@ func buildImageViaSSH(ctx context.Context, client *DockerClient, tarballPath str
 
 	// Execute the Docker build command on the remote server.
 	buildCmd := fmt.Sprintf(
-		"docker build -t %s -f %s /tmp",
-		options.ImageTag, filepath.Base(options.DockerfilePath),
+		"docker build --target %s -t %s -f %s /tmp",
+		options.TargetStage, options.ImageTag, filepath.Base(options.DockerfilePath),
 	)
 	output, err := sshClient.ExecuteCommand(ctx, buildCmd)
 	if err != nil {
