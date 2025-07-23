@@ -1,3 +1,7 @@
+> [!WARNING]
+> This project has been archived and will no longer be developed, as `KasmOrchestrator` serves as its successor.
+
+
 # KasmLink
 
 <div align="center">
